@@ -1,7 +1,7 @@
 #include <stdlib.h>
 
 // Array of connections (file descriptors) to remote clipboard servers
-int connections[MAX] = {-1};
+int connections[MAX] = {0};
 
 /*
  * This function is called by the application before interacting with the distributed clipboard.
@@ -13,7 +13,10 @@ int connections[MAX] = {-1};
 */
 int clipboard_connect(char *clipboard_dir)
 {
-	// Find empty spot in connections array (= -1)
+	// TODO: initialize connections array to -1
+	// Find empty spot in connections array (= 0) // TODO: ideally = -1
+
+	// Return index to connections array.
 }
 
 /*
