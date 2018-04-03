@@ -1,11 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
-#include <locale.h>
-#include <errno.h>
-#include <limits.h>
-#include <stdint.h>
-#include <string.h>
-#include <time.h>
+
+char *local_regions[];
 
 int main(int argc, char *argv[])
 {
