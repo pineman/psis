@@ -1,7 +1,6 @@
 #include <stdlib.h>
 
-// Array of connections (file descriptors) to remote clipboard servers
-int connections[MAX] = {0};
+// TODO: are apps single threaded? do we need to be thread safe?
 
 /*
  * This function is called by the application before interacting with the distributed clipboard.
@@ -13,10 +12,9 @@ int connections[MAX] = {0};
 */
 int clipboard_connect(char *clipboard_dir)
 {
-	// TODO: initialize connections array to -1
-	// Find empty spot in connections array (= 0) // TODO: ideally = -1
+	// Open a socket to the local clipboard server at `clipboard_dir`
 
-	// Return index to connections array.
+	// Return fd of the socket
 }
 
 /*
