@@ -1,6 +1,7 @@
 # Roadmap
  * Start by local connections, 1 to 1
  * Leave clipboard server replication for later (single mode first)
+ * Don't fuck up `\0`
 
 # Apps (clients)
  * Apps may connect to more than one local clipboard server, by the server's UDS, whose path is passed to `clipboard_connect`.

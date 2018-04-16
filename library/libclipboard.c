@@ -1,6 +1,16 @@
 #include <stdlib.h>
+#include <stdio.h>
+#include <stddef.h>
+#include <errno.h>
+
+#include <sys/socket.h>
+#include <sys/un.h>
+
+#define mperror() { fprintf(stderr, "%s:%d errno = %d: %s\n", __FILE__, __LINE__-1, errno, strerror(errno)); exit(errno); }
 
 // TODO: are apps single threaded? do we need to be thread safe?
+
+#define CLIPBOARD_SOCKET "/c"
 
 /*
  * This function is called by the application before interacting with the distributed clipboard.
@@ -12,9 +22,25 @@
 */
 int clipboard_connect(char *clipboard_dir)
 {
+	int s, r;
+
 	// Open a socket to the local clipboard server at `clipboard_dir`
+	s = socket(AF_UNIX, SOCK_STREAM, 0);
+	if (s == -1) mperror();
+
+	struct sockaddr_un clipboard_addr;
+	clipboard_addr.sun_family = AF_UNIX;
+	char path_buf[sizeof(struct sockaddr_un) - offsetof(struct sockaddr_un, sun_path)];
+	strcpy(path_buf, clipboard_dir);
+	strcat(path_buf, CLIPBOARD_SOCKET);
+	strcpy(clipboard_addr.sun_path, path_buf);
+	socklen_t clipboard_addrlen = offsetof(struct sockaddr_un, sun_path) + strlen(clipboard_addr.sun_path) + 1;
+	r = connect(s, (struct sockaddr *) &clipboard_addr, clipboard_addrlen);
+	// Error
+	if (r == -1) return r;
 
 	// Return fd of the socket
+	return s;
 }
 
 /*
