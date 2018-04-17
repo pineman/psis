@@ -3,14 +3,14 @@
 #include <stddef.h>
 #include <errno.h>
 
+#define mperror() { fprintf(stderr, "%s:%d errno = %d: %s\n", __FILE__, __LINE__-1, errno, strerror(errno)); exit(errno); }
+
 #include <sys/socket.h>
 #include <sys/un.h>
 
-#define mperror() { fprintf(stderr, "%s:%d errno = %d: %s\n", __FILE__, __LINE__-1, errno, strerror(errno)); exit(errno); }
+// TODO: are apps single threaded? do we need to be thread safe? yes for the 20
 
-// TODO: are apps single threaded? do we need to be thread safe?
-
-#define CLIPBOARD_SOCKET "/c"
+#define CLIPBOARD_SOCKET "/cb_sock"
 
 /*
  * This function is called by the application before interacting with the distributed clipboard.
@@ -22,25 +22,33 @@
 */
 int clipboard_connect(char *clipboard_dir)
 {
-	int s, r;
+	int clipboard_fd; // fd of the socket to local clipboard server
+	int r; // Auxiliary variable just for return values
 
-	// Open a socket to the local clipboard server at `clipboard_dir`
-	s = socket(AF_UNIX, SOCK_STREAM, 0);
-	if (s == -1) mperror();
+	// Open a socket to the local clipboard server at local path `clipboard_dir`/CLIPBOARD_SOCKET
+	clipboard_fd = socket(AF_UNIX, SOCK_STREAM, 0);
+	if (clipboard_fd == -1) mperror();
 
+	/* Copy `clipboard_dir` and concatenate with `CLIPBOARD_SOCKET` to get the
+	 * socket path. */
 	struct sockaddr_un clipboard_addr;
 	clipboard_addr.sun_family = AF_UNIX;
-	char path_buf[sizeof(struct sockaddr_un) - offsetof(struct sockaddr_un, sun_path)];
+	// Maximum size of sockaddr_un.sun_path
+	int path_buf_size = sizeof(struct sockaddr_un) - offsetof(struct sockaddr_un, sun_path);
+	char path_buf[path_buf_size];
+
 	strcpy(path_buf, clipboard_dir);
 	strcat(path_buf, CLIPBOARD_SOCKET);
 	strcpy(clipboard_addr.sun_path, path_buf);
 	socklen_t clipboard_addrlen = offsetof(struct sockaddr_un, sun_path) + strlen(clipboard_addr.sun_path) + 1;
-	r = connect(s, (struct sockaddr *) &clipboard_addr, clipboard_addrlen);
+
+	// Connect to local clipboard server
+	r = connect(clipboard_fd, (struct sockaddr *) &clipboard_addr, clipboard_addrlen);
 	// Error
 	if (r == -1) return r;
 
-	// Return fd of the socket
-	return s;
+	// Return the fd of the socket to local clipboard server
+	return clipboard_fd;
 }
 
 /*

@@ -1,5 +1,5 @@
-#include <stdio.h>
 #include <stdlib.h>
+#include <stdio.h>
 #include <locale.h>
 #include <errno.h>
 #include <limits.h>
@@ -14,7 +14,7 @@
 
 int main(int argc, char *argv[])
 {
-	printf("%d\n", clipboard_connect("/home/pineman/ist/a3s2/PSis/proj/library"));
+	printf("%d\n", clipboard_connect("/home/pineman/ist/a3s2/PSis/proj/clipboard"));
 
 	return EXIT_SUCCESS;
 }
