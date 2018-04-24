@@ -5,7 +5,7 @@
 #include <string.h>
 #include <unistd.h>
 
-#define mperror() { fprintf(stderr, "%s:%d errno = %d: %s\n", __FILE__, __LINE__-1, errno, strerror(errno)); exit(errno); }
+#define eperror(r) { fprintf(stderr, "%s:%d errno = %d: %s\n", __FILE__, __LINE__-1, r, strerror(r)); exit(r); }
 
 #include <sys/socket.h>
 #include <sys/un.h>
@@ -23,7 +23,7 @@ int listen_local(void)
 
 	int local_socket;
 	local_socket = socket(AF_UNIX, SOCK_STREAM, 0);
-	if (local_socket == -1) mperror();
+	if (local_socket == -1) eperror(errno);
 
 	struct sockaddr_un local_addr;
 	local_addr.sun_family = AF_UNIX;
@@ -32,17 +32,17 @@ int listen_local(void)
 	char path_buf[path_buf_size];
 
 	// Get current working directory and concatenate with CLIPBOARD_SOCKET
-	if (getcwd(path_buf, path_buf_size) == NULL) mperror();
+	if (getcwd(path_buf, path_buf_size) == NULL) eperror(errno);
 	strcat(path_buf, CLIPBOARD_SOCKET);
 	strcpy(local_addr.sun_path, path_buf);
 	socklen_t local_addrlen = offsetof(struct sockaddr_un, sun_path) + strlen(local_addr.sun_path) + 1;
 
 	r = unlink(local_addr.sun_path);
-	if (r == -1 && errno != ENOENT) mperror();
+	if (r == -1 && errno != ENOENT) eperror(errno);
 	r = bind(local_socket, (struct sockaddr *) &local_addr, local_addrlen);
-	if (r == -1) mperror();
+	if (r == -1) eperror(errno);
 	r = listen(local_socket, SOMAXCONN);
-	if (r == -1) mperror();
+	if (r == -1) eperror(errno);
 
 	printf("Listening for local applications on %s\n", local_addr.sun_path);
 
@@ -55,7 +55,7 @@ int listen_remote(void)
 
 	int remote_socket;
 	remote_socket = socket(AF_INET, SOCK_STREAM, 0);
-	if (remote_socket == -1) mperror();
+	if (remote_socket == -1) eperror(errno);
 
 	struct sockaddr_in local_addr;
 	//local_addr.sin_family = AF_INET;
@@ -64,20 +64,34 @@ int listen_remote(void)
 	socklen_t local_addrlen = sizeof(struct sockaddr_in);
 
 	//r = bind(remote_socket, (struct sockaddr *) &local_addr, local_addrlen);
-	//if (r == -1) mperror();
+	//if (r == -1) eperror(errno);
 
 	r = listen(remote_socket, SOMAXCONN);
-	if (r == -1) mperror();
+	if (r == -1) eperror(errno);
 
 	r = getsockname(remote_socket, (struct sockaddr *) &local_addr, &local_addrlen);
-	if (r == -1) mperror();
+	if (r == -1) eperror(errno);
 	printf("Listening for remote clipboards on %s:%d\n", inet_ntoa(local_addr.sin_addr), ntohs(local_addr.sin_port));
 
 	return remote_socket;
 }
 
+void *local_accept_thread()
+{
+	// Listen UNIX on getcwd()/`CLIPBOARD_SOCKET`for local app connections
+	int local_socket = listen_local();
+}
+
+void *remote_accept_thread()
+{
+	// Listen INET on a random port for remote clipboard connections
+	int remote_socket = listen_remote();
+}
+
 int main(int argc, char *argv[])
 {
+	int r;
+
 	/* In order to launch the clipboard in connected mode it is necessary for
 	 * the user to use the command  line  argument  -c followed  by  the
 	 * address  and  port  of  another  clipboard.
@@ -101,11 +115,10 @@ int main(int argc, char *argv[])
 		// by potencial children clipboards on `remote_socket`)
 	}
 
-	// Listen UNIX on getcwd()/`CLIPBOARD_SOCKET`for local app connections
-	int local_socket = listen_local();
-
-	// Listen INET on a random port for remote clipboard connections
-	int remote_socket = listen_remote();
+	//r = pthread_create(, NULL, local_accept_thread, );
+	//if (r != 0) eperror(r);
+	//r = pthread_create(, NULL, remote_accept_thread, );
+	//if (r != 0) eperror(r);
 
 	sleep(100);
 

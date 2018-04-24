@@ -26,13 +26,17 @@
 
 # Clipboard (server)
  * When starting, connect to another clipboard server given in the argv[].
+ * Also need to define a Clipboard Protocol
  * Synchronize our local regions with the other remote servers. 
  * Each local clipboard should have one thread that receives connections from local applications.
  * Each local clipboard should have one thread that receives connections from cooperative remote clipboards.
  * Each local clipboard should create one thread for every connected application.
  * Regions will be protected by a lock.
+ * Freitas: only one syncronization thread sends messages to children/parent, other client threads speak to it and enqueue messages ?
 
-### Protocol
+### Clipboard Protocol
+
+### Libary protocol
  * Between library and clipboard server
  * Message is: <command><region><size><data>
  * `command` is 8 bits `uint8_t`
