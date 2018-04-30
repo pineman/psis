@@ -1,12 +1,12 @@
-CC=gcc
+CC=clang
 #CCX=
-CFLAGS=-Wall -Wextra -pedantic
-CFLAGS+=-O0
-#CFLAGS+=-g -Og
+CFLAGS=-Wall -Wextra -pedantic -pthread
+#CFLAGS+=-O0
+CFLAGS+=-g -Og
 #CFLAGS+=-pg
 #CXXFLAGS=$(CFLAGS)
 CPPFLAGS=
-LDFLAGS=
+LDFLAGS=-pthread
 LDLIBS=
 SRCDIR=.
 SRC!=find $(SRCDIR) -type f -name "*.c"
@@ -41,7 +41,7 @@ $(OBJDIR)/%.d: $(SRCDIR)/%.c
 all: $(EXECS)
 
 clean:
-	$(HIDE)rm -rf $(OBJDIR) $(EXECS)
+	$(HIDE)rm -rf $(OBJDIR) $(EXECS) cb_sock
 
 # This rebuilds everything if the Makefile was modified
 # http://stackoverflow.com/questions/3871444/making-all-rules-depend-on-the-makefile-itself/3892826#3892826

@@ -39,7 +39,7 @@
 ### Libary protocol
  * Between library and clipboard server
  * Message is: <command><region><size><data>
- * `command` is 8 bits `uint8_t`
- * `region` is 8 bits `uint8_t`
- * `size` is 32 bits `uint32_t`
+ * `command` is 1 byte `uint8_t`
+ * `region` is 1 byte `uint8_t`
+ * `size` is 4 bytes `uint32_t`
  * `data` is whatever `size`

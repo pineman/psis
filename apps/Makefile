@@ -1,21 +1,22 @@
-CC=gcc
+CC=clang
 #CCX=
-CFLAGS=-Wall -Wextra -pedantic
-CFLAGS+=-O0
-#CFLAGS+=-g -Og
+CFLAGS=-Wall -Wextra -pedantic -pthread
+#CFLAGS+=-O0
+CFLAGS+=-g -Og
 #CFLAGS+=-pg
 #CXXFLAGS=$(CFLAGS)
-CPPFLAGS=
-LDFLAGS=
+CPPFLAGS=-I../library/
+LDFLAGS=-pthread
 LDLIBS=
 SRCDIR=.
 SRC!=find $(SRCDIR) -type f -name "*.c"
+LIB_OBJ!=find ../library -type f -name "*.o"
 
-all: $(SRC:%.c=%)
+all: $(SRC:%.c=%) $(LIB_OBJ)
 
-%: %.c ../library/libclipboard.o
+%: %.c $(LIB_OBJ)
 	$(CC) -c -o $@.o $(CPPFLAGS) $(CFLAGS) $<
-	$(CC) -o $@ $(LDFLAGS) $(LDLIBS) $@.o ../library/libclipboard.o
+	$(CC) -o $@ $(LDFLAGS) $(LDLIBS) $@.o $(LIB_OBJ)
 
 .PHONY: clean
 clean:

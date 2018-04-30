@@ -11,6 +11,7 @@
 #include <sys/un.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
+#include <pthread.h>
 
 #define NUM_REGIONS 10
 char *local_regions[NUM_REGIONS];
@@ -80,12 +81,22 @@ void *local_accept_thread()
 {
 	// Listen UNIX on getcwd()/`CLIPBOARD_SOCKET`for local app connections
 	int local_socket = listen_local();
+
+	while (1) {
+	}
+
+	close(local_socket);
 }
 
 void *remote_accept_thread()
 {
 	// Listen INET on a random port for remote clipboard connections
 	int remote_socket = listen_remote();
+
+	while (1) {
+	}
+
+	close(remote_socket);
 }
 
 int main(int argc, char *argv[])
@@ -115,12 +126,14 @@ int main(int argc, char *argv[])
 		// by potencial children clipboards on `remote_socket`)
 	}
 
-	//r = pthread_create(, NULL, local_accept_thread, );
-	//if (r != 0) eperror(r);
-	//r = pthread_create(, NULL, remote_accept_thread, );
-	//if (r != 0) eperror(r);
+	pthread_t lt, rt;
+	r = pthread_create(&lt, NULL, local_accept_thread, NULL);
+	if (r != 0) eperror(r);
+	r = pthread_create(&rt, NULL, remote_accept_thread, NULL);
+	if (r != 0) eperror(r);
 
-	sleep(100);
+	r = pthread_join(lt, NULL);
+	r = pthread_join(rt, NULL);
 
 	return EXIT_SUCCESS;
 }

@@ -8,13 +8,22 @@
 #include <time.h>
 #include <stddef.h>
 
-#define mperror() { fprintf(stderr, "%s:%d errno = %d: %s\n", __FILE__, __LINE__-1, errno, strerror(errno)); exit(errno); }
+#define eperror(r) { fprintf(stderr, "%s:%d errno = %d: %s\n", __FILE__, __LINE__-1, r, strerror(r)); exit(r); }
 
-#include "../library/libclipboard.h"
+#include "libclipboard.h"
 
 int main(int argc, char *argv[])
 {
-	printf("%d\n", clipboard_connect("/home/pineman/ist/a3s2/PSis/proj/clipboard"));
+	int r;
+
+	if (argc != 2)
+		return EXIT_FAILURE;
+
+	int cb = clipboard_connect(argv[1]);
+
+	char buf[] = "";
+	r = clipboard_copy(cb, 1, NULL, 2);
+	printf("r = %d\n", r);
 
 	return EXIT_SUCCESS;
 }

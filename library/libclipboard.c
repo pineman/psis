@@ -1,16 +1,17 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <stddef.h>
+#include <stdint.h>
 #include <errno.h>
 
-#define mperror() { fprintf(stderr, "%s:%d errno = %d: %s\n", __FILE__, __LINE__-1, errno, strerror(errno)); exit(errno); }
-
+#include <unistd.h>
 #include <sys/socket.h>
 #include <sys/un.h>
 
-// TODO: are apps single threaded? do we need to be thread safe? yes for the 20
+#include "../common.h"
+#include "msg.h"
 
-#define CLIPBOARD_SOCKET "/cb_sock"
+// TODO: make critical sections (i.e. read/write [connect?]) thread-safe
 
 /*
  * This function is called by the application before interacting with the distributed clipboard.
@@ -27,16 +28,15 @@ int clipboard_connect(char *clipboard_dir)
 
 	// Open a socket to the local clipboard server at local path `clipboard_dir`/CLIPBOARD_SOCKET
 	clipboard_fd = socket(AF_UNIX, SOCK_STREAM, 0);
-	if (clipboard_fd == -1) mperror();
+	if (clipboard_fd == -1) eperror(errno);
 
-	/* Copy `clipboard_dir` and concatenate with `CLIPBOARD_SOCKET` to get the
-	 * socket path. */
 	struct sockaddr_un clipboard_addr;
 	clipboard_addr.sun_family = AF_UNIX;
-	// Maximum size of sockaddr_un.sun_path
+	// Maximum size of sockaddr_un.sun_path for temp buffer
 	int path_buf_size = sizeof(struct sockaddr_un) - offsetof(struct sockaddr_un, sun_path);
 	char path_buf[path_buf_size];
-
+	// Copy `clipboard_dir` and concatenate with `CLIPBOARD_SOCKET` to get the
+	// socket path.
 	strcpy(path_buf, clipboard_dir);
 	strcat(path_buf, CLIPBOARD_SOCKET);
 	strcpy(clipboard_addr.sun_path, path_buf);
@@ -44,8 +44,8 @@ int clipboard_connect(char *clipboard_dir)
 
 	// Connect to local clipboard server
 	r = connect(clipboard_fd, (struct sockaddr *) &clipboard_addr, clipboard_addrlen);
-	// Error
-	if (r == -1) return r;
+	// Error connecting, errno is set
+	if (r == -1) return -1;
 
 	// Return the fd of the socket to local clipboard server
 	return clipboard_fd;
@@ -64,6 +64,24 @@ int clipboard_connect(char *clipboard_dir)
  */
 int clipboard_copy(int clipboard_id, int region, void *buf, size_t count)
 {
+	// count must be >0 and buf must contain something
+	if (count == 0 || buf == NULL) return 0;
+
+	// region must be 0..NUM_REGIONS-1
+	if (region >= NUM_REGIONS || region < 0) return 0;
+
+	// Truncate data to MSG_DATA_MAX_SIZE bytes
+	uint32_t data_size = (uint32_t) count;
+	if (data_size > MSG_DATA_MAX_SIZE) {
+		data_size = MSG_DATA_MAX_SIZE;
+	}
+
+	uint8_t *msg_copy = make_msg(CB_CMD_COPY, (uint8_t) region, data_size, buf);
+
+	int ret = send_msg(clipboard_id, data_size, msg_copy);
+
+	free(msg_copy);
+	return ret;
 }
 
 /*
@@ -79,6 +97,16 @@ int clipboard_copy(int clipboard_id, int region, void *buf, size_t count)
  */
 int clipboard_paste(int clipboard_id, int region, void *buf, size_t count)
 {
+	int ret;
+
+	uint8_t *msg_req_paste = make_msg(CB_CMD_REQ_PASTE, (uint8_t) region, 0, NULL);
+
+	ret = send_msg(clipboard_id, 0, msg_req_paste);
+	if (ret == 0) goto out;
+
+out:
+	free(msg_req_paste);
+	return ret;
 }
 
 /*
@@ -104,4 +132,8 @@ int clipboard_wait(int clipboard_id, int region, void *buf, size_t count)
  */
 void clipboard_close(int clipboard_id)
 {
+	int r;
+
+	r = close(clipboard_id);
+	if (r == -1) eperror(errno);
 }
