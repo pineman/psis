@@ -5,7 +5,7 @@ CFLAGS=-Wall -Wextra -pedantic -std=c99 -pthread
 CFLAGS+=-g -Og
 #CFLAGS+=-pg
 #CXXFLAGS=$(CFLAGS)
-CPPFLAGS=
+CPPFLAGS=-I../
 LDFLAGS=-pthread
 LDLIBS=
 SRCDIR=.
@@ -13,7 +13,7 @@ SRC!=find $(SRCDIR) -type f -name "*.c"
 
 # Define executables and their link dependencies here
 EXECS = clipboard
-clipboard_DEPS = main.c
+clipboard_DEPS = main.c local.c remote.c
 clipboard_LIBS =
 
 ###############################################################################
@@ -34,14 +34,14 @@ $(OBJDIR)/%.o: $(SRCDIR)/%.c
 -include $(SRC:$(SRCDIR)/%.c=$(OBJDIR)/%.d)
 $(OBJDIR)/%.d: $(SRCDIR)/%.c
 	@mkdir -p $(OBJDIR)
-	@$(CC) -MM -MF $@ $^
+	@$(CC) $(CPPFLAGS) -MM -MF $@ $^
 
 .PHONY=clean all
 .DEFAULT_GOAL=all
 all: $(EXECS)
 
 clean:
-	$(HIDE)rm -rf $(OBJDIR) $(EXECS) cb_sock
+	$(HIDE)rm -rf $(OBJDIR) $(EXECS) CLIPBOARD_SOCKET
 
 # This rebuilds everything if the Makefile was modified
 # http://stackoverflow.com/questions/3871444/making-all-rules-depend-on-the-makefile-itself/3892826#3892826

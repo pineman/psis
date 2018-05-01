@@ -5,7 +5,7 @@ CFLAGS=-Wall -Wextra -pedantic -std=c99 -pthread
 CFLAGS+=-g -Og
 #CFLAGS+=-pg
 #CXXFLAGS=$(CFLAGS)
-CPPFLAGS=-I../library/
+CPPFLAGS=-I../library/ -I..
 LDFLAGS=-pthread
 LDLIBS=
 SRCDIR=.
@@ -14,7 +14,7 @@ LIB_OBJ!=find ../library -type f -name "*.o"
 
 all: $(SRC:%.c=%)
 
-%: %.c
+%: %.c $(LIB_OBJ)
 	$(CC) -c -o $@.o $(CPPFLAGS) $(CFLAGS) $<
 	$(CC) -o $@ $(LDFLAGS) $(LDLIBS) $@.o $(LIB_OBJ)
 

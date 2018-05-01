@@ -1,17 +1,13 @@
-#include <stdlib.h>
-#include <stdio.h>
 #include <stdint.h>
 #include <stdbool.h>
 #include <stddef.h>
-#include <string.h>
 #include <assert.h>
-#include <errno.h>
 
 #include <unistd.h>
 #include <sys/socket.h>
 #include <sys/un.h>
 
-#include "../common.h"
+#include "common.h"
 #include "msg.h"
 
 #define MIN(a, b) ((a) < (b) ? a : b)
@@ -126,8 +122,8 @@ int clipboard_paste(int clipboard_id, int region, void *buf, size_t count)
 	// Send a paste request
 	uint8_t *msg_req_paste = malloc(CB_HEADER_SIZE + CB_DATA_MAX_SIZE);
 	if (msg_req_paste == NULL) eperror(errno);
-	make_msg(msg_req_paste, CB_CMD_REQ_PASTE, (uint8_t) region, 1, "r");
-	ret = send_msg(clipboard_id, 1, msg_req_paste);
+	make_msg(msg_req_paste, CB_CMD_REQ_PASTE, (uint8_t) region, 10, "req_paste"); // TODO: data to send on req_paste?
+	ret = send_msg(clipboard_id, 10, msg_req_paste);
 	if (ret == 0) goto out_req; // Sending failed
 
 	// Get the server's response

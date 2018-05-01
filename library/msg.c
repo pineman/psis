@@ -1,13 +1,9 @@
-#include <stdlib.h>
-#include <stdio.h>
 #include <stdint.h>
-#include <string.h>
 #include <assert.h>
-#include <errno.h>
 
 #include <sys/socket.h>
 
-#include "../common.h"
+#include "common.h"
 
 // Modify a buffer msg_buf to become a message with given arguments by value.
 // Arguments are COPIED to msg_buf.
@@ -44,13 +40,16 @@ int send_msg(int clipboard_id, uint32_t data_size, uint8_t *msg)
 	int r, ret;
 	int msg_size = CB_HEADER_SIZE + data_size;
 
-	r = send(clipboard_id, msg, msg_size, 0);
+	r = send(clipboard_id, msg, msg_size, MSG_NOSIGNAL);
 	if (r == -1) {
-		if (errno == EBADF || errno == ECONNRESET || errno == EACCES || errno == EPIPE)
+		if (errno == EBADF || errno == ECONNRESET || errno == EACCES || errno == EPIPE) {
 			// Return zero when there's a connection error
 			ret = 0;
-		else
+			//mperror(errno); // TODO: remove
+		}
+		else {
 			eperror(errno);
+		}
 	}
 	else if (r == msg_size) {
 		// Success: send() returned the number of bytes we asked for
