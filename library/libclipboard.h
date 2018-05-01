@@ -1,6 +1,4 @@
-#include <stddef.h>
-#include <stdint.h>
-#include <stdbool.h>
+#include <stdlib.h>
 
 int clipboard_connect(char *clipboard_dir);
 int clipboard_copy(int clipboard_id, int region, void *buf, size_t count);

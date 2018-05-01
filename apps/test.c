@@ -20,10 +20,16 @@ int main(int argc, char *argv[])
 		return EXIT_FAILURE;
 
 	int cb = clipboard_connect(argv[1]);
+	printf("cb = %d\n", cb);
 
-	char buf[] = "Hello!";
-	r = clipboard_copy(cb, 9, buf, sizeof(buf));
-	printf("r = %d\n", r);
+	//char buf[] = "Hello!";
+	//r = clipboard_copy(cb, 9, buf, sizeof(buf));
+	//printf("r = %d\n", r);
+
+	char buf[10] = {0};
+	r = clipboard_paste(cb, 8, (void *) buf, sizeof(buf));
+	printf("paste returned %d\n", r);
+	puts(buf);
 
 	return EXIT_SUCCESS;
 }

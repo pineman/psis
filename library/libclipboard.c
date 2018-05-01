@@ -1,10 +1,11 @@
 #include <stdlib.h>
 #include <stdio.h>
-#include <stddef.h>
 #include <stdint.h>
 #include <stdbool.h>
-#include <errno.h>
+#include <stddef.h>
+#include <string.h>
 #include <assert.h>
+#include <errno.h>
 
 #include <unistd.h>
 #include <sys/socket.h>
@@ -125,8 +126,8 @@ int clipboard_paste(int clipboard_id, int region, void *buf, size_t count)
 	// Send a paste request
 	uint8_t *msg_req_paste = malloc(CB_HEADER_SIZE + CB_DATA_MAX_SIZE);
 	if (msg_req_paste == NULL) eperror(errno);
-	make_msg(msg_req_paste, CB_CMD_REQ_PASTE, (uint8_t) region, 0, NULL);
-	ret = send_msg(clipboard_id, 0, msg_req_paste);
+	make_msg(msg_req_paste, CB_CMD_REQ_PASTE, (uint8_t) region, 1, "r");
+	ret = send_msg(clipboard_id, 1, msg_req_paste);
 	if (ret == 0) goto out_req; // Sending failed
 
 	// Get the server's response
@@ -141,7 +142,7 @@ int clipboard_paste(int clipboard_id, int region, void *buf, size_t count)
 	uint32_t resp_data_size;
 	void *resp_data = NULL;
 	parse_msg(msg_resp, &resp_cmd, &resp_region, &resp_data_size, &resp_data);
-	// TODO: these should never happen
+	// TODO: these should never happen probably
 	assert(resp_region == region);
 	assert(resp_cmd == CB_CMD_PASTE);
 

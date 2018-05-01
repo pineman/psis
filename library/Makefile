@@ -1,6 +1,6 @@
 CC=clang
 #CCX=
-CFLAGS=-Wall -Wextra -pedantic -pthread
+CFLAGS=-Wall -Wextra -pedantic -std=c99 -pthread
 #CFLAGS+=-O0
 CFLAGS+=-g -Og
 #CFLAGS+=-pg

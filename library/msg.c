@@ -1,20 +1,20 @@
 #include <stdlib.h>
 #include <stdio.h>
-#include <stddef.h>
 #include <stdint.h>
+#include <string.h>
+#include <assert.h>
 #include <errno.h>
 
-#include <unistd.h>
 #include <sys/socket.h>
-#include <sys/un.h>
 
 #include "../common.h"
 
-// Modify a buffer msg_buf to become a message with given arguments.
+// Modify a buffer msg_buf to become a message with given arguments by value.
+// Arguments are COPIED to msg_buf.
 // if data_size == 0, data is ignored.
 void make_msg(uint8_t *msg_buf, uint8_t cmd, uint8_t region, uint32_t data_size, void *data)
 {
-	int i = 0; // track buf position
+	int i = 0; // track msg_buf position
 
 	// command (1 byte)
 	msg_buf[i] = cmd;
@@ -28,11 +28,12 @@ void make_msg(uint8_t *msg_buf, uint8_t cmd, uint8_t region, uint32_t data_size,
 	memcpy(msg_buf+i, (void *) &data_size, 4);
 	i += 4;
 
-	// Skip data for messages without data (data_size = 0)
-	if (data_size != 0) {
-		// data (`data_size` bytes)
-		memcpy(msg_buf+i, data, data_size);
-	}
+	// Messages must have data (data_size != 0) since 0 is reserved as return
+	// value to signify error. Zero length messages are not allowed.
+	assert(data_size != 0);
+
+	// data (`data_size` bytes)
+	memcpy(msg_buf+i, data, data_size);
 }
 
 // Send message to a clipboard server
@@ -66,30 +67,6 @@ int send_msg(int clipboard_id, uint32_t data_size, uint8_t *msg)
 	return ret;
 }
 
-// Read and parse msg_buf to the arguments given by reference.
-// if data_size == 0, data is ignored.
-void parse_msg(uint8_t *msg_buf, uint8_t *cmd, uint8_t *region, uint32_t *data_size, void **data)
-{
-	int i = 0;
-
-	// command (1 byte)
-	*cmd = msg_buf[i];
-	i++;
-
-	// region (1 byte)
-	*region = msg_buf[i];
-	i++;
-
-	// data_size (4 bytes)
-	*data_size = *((uint32_t *) msg_buf+i);
-	i += 4;
-
-	// Skip data for messages without data (data_size = 0)
-	if (data_size != 0) {
-		*data = msg_buf+i;
-	}
-}
-
 // Wrapper around recv()
 // Returns number of bytes read from clipboard or 0 on error.
 int erecv(int sock_fd, void *buf, size_t len)
@@ -121,12 +98,40 @@ int recv_msg(int clipboard_id, uint8_t *msg_buf)
 	}
 
 	// Get data_size from the header (1+1 bytes up)
-	size_t data_size = *((size_t *) (msg_buf+1+1));
+	uint32_t data_size = 0;
+	data_size = ((uint32_t) *(msg_buf+1+1));
 	// Get clipboard data
-	r = erecv(clipboard_id, (void *) msg_buf + CB_HEADER_SIZE, data_size);
+	r = erecv(clipboard_id, (void *) (msg_buf + CB_HEADER_SIZE), (size_t) data_size);
 	if (r == 0) {
 		return 0;
 	}
 	// Return number of clipboard data bytes
 	return r;
+}
+
+// Read and parse msg_buf. Arguments are given references to msg_buf,
+// NOT COPIED from msg_buf.
+// if data_size == 0, data is ignored.
+void parse_msg(uint8_t *msg_buf, uint8_t *cmd, uint8_t *region, uint32_t *data_size, void **data)
+{
+	int i = 0; // track msg_buf position
+
+	// command (1 byte)
+	*cmd = msg_buf[i];
+	i++;
+
+	// region (1 byte)
+	*region = msg_buf[i];
+	i++;
+
+	// data_size (4 bytes)
+	*data_size = ((uint32_t) *(msg_buf+i));
+	i += 4;
+
+	// Messages must have data (data_size != 0) since 0 is reserved as return
+	// value to signify error. Zero length messages are not allowed.
+	assert(*data_size != 0);
+
+	// data (`data_size` bytes)
+	*data = msg_buf+i;
 }

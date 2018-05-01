@@ -1,6 +1,6 @@
 CC=clang
 #CCX=
-CFLAGS=-Wall -Wextra -pedantic -pthread
+CFLAGS=-Wall -Wextra -pedantic -std=c99 -pthread
 #CFLAGS+=-O0
 CFLAGS+=-g -Og
 #CFLAGS+=-pg
@@ -12,9 +12,9 @@ SRCDIR=.
 SRC!=find $(SRCDIR) -type f -name "*.c"
 LIB_OBJ!=find ../library -type f -name "*.o"
 
-all: $(SRC:%.c=%) $(LIB_OBJ)
+all: $(SRC:%.c=%)
 
-%: %.c $(LIB_OBJ)
+%: %.c
 	$(CC) -c -o $@.o $(CPPFLAGS) $(CFLAGS) $<
 	$(CC) -o $@ $(LDFLAGS) $(LDLIBS) $@.o $(LIB_OBJ)
 
