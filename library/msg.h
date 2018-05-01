@@ -1,3 +1,6 @@
-uint8_t *make_msg(uint8_t cmd, uint8_t region, uint32_t data_size, void *data);
+void make_msg(uint8_t *msg_buf, uint8_t cmd, uint8_t region, uint32_t data_size, void *data);
 int send_msg(int clipboard_id, uint32_t data_size, uint8_t *msg);
-uint8_t *recv_msg(int clipboard_id, int *msg_size);
+
+void parse_msg(uint8_t *msg_buf, uint8_t *cmd, uint8_t *region, uint32_t *data_size, void *data);
+int erecv(int sock_fd, void *buf, size_t len);
+int recv_msg(int clipboard_id, uint8_t *msg_buf);

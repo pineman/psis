@@ -23,6 +23,7 @@
  * These two write/read follow a protocol between the library and the local clipboard server.
  * Connect to the local clipboard server by UDS (or shared memory (unrelated processes) if `void *buf` too big - Performance optimization the prof. suggested).
  * `SOCK_STREAM`
+ * copy/paste: do only one `write` (two `recv`s) to minimize critical region, this forces the use of a msg buffer instead of a struct
 
 # Clipboard (server)
  * When starting, connect to another clipboard server given in the argv[].
@@ -33,6 +34,7 @@
  * Each local clipboard should create one thread for every connected application.
  * Regions will be protected by a lock.
  * Freitas: only one syncronization thread sends messages to children/parent, other client threads speak to it and enqueue messages ?
+ * When we receive updates from remote clipboards, do we need to push them to the app? Or are they in charge of getting new stuff?
 
 ### Clipboard Protocol
 

@@ -21,8 +21,8 @@ int main(int argc, char *argv[])
 
 	int cb = clipboard_connect(argv[1]);
 
-	char buf[] = "";
-	r = clipboard_copy(cb, 1, NULL, 2);
+	char buf[] = "Hello!";
+	r = clipboard_copy(cb, 9, buf, sizeof(buf));
 	printf("r = %d\n", r);
 
 	return EXIT_SUCCESS;

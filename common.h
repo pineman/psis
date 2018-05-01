@@ -7,10 +7,10 @@
  */
 
 enum cb_cmd {CB_CMD_COPY, CB_CMD_REQ_PASTE, CB_CMD_PASTE};
-#define MSG_HEADER_SIZE 1 + 1 + 4
-#define MSG_DATA_MAX_SIZE 20
+#define CB_HEADER_SIZE 1 + 1 + 4
+#define CB_DATA_MAX_SIZE 20
 
-#define CLIPBOARD_SOCKET "/cb_sock"
-#define NUM_REGIONS 10
+#define CB_SOCKET "/cb_sock"
+#define CB_NUM_REGIONS 10
 
 #define eperror(r) { fprintf(stderr, "%s:%d errno = %d: %s\n", __FILE__, __LINE__-1, r, strerror(r)); exit(r); }

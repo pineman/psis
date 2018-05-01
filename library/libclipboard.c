@@ -2,7 +2,9 @@
 #include <stdio.h>
 #include <stddef.h>
 #include <stdint.h>
+#include <stdbool.h>
 #include <errno.h>
+#include <assert.h>
 
 #include <unistd.h>
 #include <sys/socket.h>
@@ -10,6 +12,8 @@
 
 #include "../common.h"
 #include "msg.h"
+
+#define MIN(a, b) ((a) < (b) ? a : b)
 
 // TODO: make critical sections (i.e. read/write [connect?]) thread-safe
 
@@ -38,7 +42,7 @@ int clipboard_connect(char *clipboard_dir)
 	// Copy `clipboard_dir` and concatenate with `CLIPBOARD_SOCKET` to get the
 	// socket path.
 	strcpy(path_buf, clipboard_dir);
-	strcat(path_buf, CLIPBOARD_SOCKET);
+	strcat(path_buf, CB_SOCKET);
 	strcpy(clipboard_addr.sun_path, path_buf);
 	socklen_t clipboard_addrlen = offsetof(struct sockaddr_un, sun_path) + strlen(clipboard_addr.sun_path) + 1;
 
@@ -49,6 +53,25 @@ int clipboard_connect(char *clipboard_dir)
 
 	// Return the fd of the socket to local clipboard server
 	return clipboard_fd;
+}
+
+// Perform basic sanity checks to arguments, truncate `count` to a maximum
+// of CB_DATA_MAX_SIZE bytes and store that in *data_size
+bool cb_sanity_check(uint32_t *data_size, int region, void *buf, size_t count)
+{
+	// count must be >0 and buf must contain something
+	if (count == 0 || buf == NULL) return false;
+
+	// region must be 0..CB_NUM_REGIONS-1
+	if (region >= CB_NUM_REGIONS || region < 0) return false;
+
+	// Truncate data to CB_DATA_MAX_SIZE bytes
+	*data_size = (uint32_t) count;
+	if (*data_size > CB_DATA_MAX_SIZE) {
+		*data_size = CB_DATA_MAX_SIZE;
+	}
+
+	return true;
 }
 
 /*
@@ -64,21 +87,16 @@ int clipboard_connect(char *clipboard_dir)
  */
 int clipboard_copy(int clipboard_id, int region, void *buf, size_t count)
 {
-	// count must be >0 and buf must contain something
-	if (count == 0 || buf == NULL) return 0;
+	int r, ret;
 
-	// region must be 0..NUM_REGIONS-1
-	if (region >= NUM_REGIONS || region < 0) return 0;
+	uint32_t data_size;
+	r = cb_sanity_check(&data_size, region, buf, count);
+	if (r == false) return 0;
 
-	// Truncate data to MSG_DATA_MAX_SIZE bytes
-	uint32_t data_size = (uint32_t) count;
-	if (data_size > MSG_DATA_MAX_SIZE) {
-		data_size = MSG_DATA_MAX_SIZE;
-	}
-
-	uint8_t *msg_copy = make_msg(CB_CMD_COPY, (uint8_t) region, data_size, buf);
-
-	int ret = send_msg(clipboard_id, data_size, msg_copy);
+	// Send the 'copy' message
+	uint8_t *msg_copy = malloc(CB_HEADER_SIZE + CB_DATA_MAX_SIZE);
+	make_msg(msg_copy, CB_CMD_COPY, (uint8_t) region, data_size, buf);
+	ret = send_msg(clipboard_id, data_size, msg_copy);
 
 	free(msg_copy);
 	return ret;
@@ -97,14 +115,42 @@ int clipboard_copy(int clipboard_id, int region, void *buf, size_t count)
  */
 int clipboard_paste(int clipboard_id, int region, void *buf, size_t count)
 {
-	int ret;
+	int r, ret;
 
-	uint8_t *msg_req_paste = make_msg(CB_CMD_REQ_PASTE, (uint8_t) region, 0, NULL);
+	uint32_t req_data_size;
+	r = cb_sanity_check(&req_data_size, region, buf, count);
+	if (r == false) return 0;
 
+	// Send a paste request
+	uint8_t *msg_req_paste = malloc(CB_HEADER_SIZE + CB_DATA_MAX_SIZE);
+	make_msg(msg_req_paste, CB_CMD_REQ_PASTE, (uint8_t) region, 0, NULL);
 	ret = send_msg(clipboard_id, 0, msg_req_paste);
-	if (ret == 0) goto out;
+	if (ret == 0) goto out_req; // Sending failed
 
-out:
+	// Get the server's response
+	uint8_t *msg_resp = malloc(CB_HEADER_SIZE + CB_DATA_MAX_SIZE);
+	ret = recv_msg(clipboard_id, msg_resp);
+	if (ret == 0) goto out_resp; // Receiving failed
+
+	// Parse the server's response
+	uint8_t resp_cmd;
+	uint8_t resp_region; // TODO: uneeded? NO maybe replies can be stateless for mega performance
+	uint32_t resp_data_size;
+	void *resp_data = NULL;
+	parse_msg(msg_resp, &resp_cmd, &resp_region, &resp_data_size, resp_data);
+	// TODO: these should never happen
+	assert(resp_region == region);
+	assert(resp_cmd == CB_CMD_PASTE);
+
+	// Truncate data to the response's data_size or user requested data_size,
+	// whichever is smallest
+	resp_data_size = MIN(resp_data_size, req_data_size);
+	// Everything OK, copy data received from the server to the user buf.
+	memcpy(buf, resp_data, resp_data_size);
+
+out_resp:
+	free(msg_resp);
+out_req:
 	free(msg_req_paste);
 	return ret;
 }
