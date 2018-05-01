@@ -95,6 +95,7 @@ int clipboard_copy(int clipboard_id, int region, void *buf, size_t count)
 
 	// Send the 'copy' message
 	uint8_t *msg_copy = malloc(CB_HEADER_SIZE + CB_DATA_MAX_SIZE);
+	if (msg_copy == NULL) eperror(errno);
 	make_msg(msg_copy, CB_CMD_COPY, (uint8_t) region, data_size, buf);
 	ret = send_msg(clipboard_id, data_size, msg_copy);
 
@@ -123,12 +124,14 @@ int clipboard_paste(int clipboard_id, int region, void *buf, size_t count)
 
 	// Send a paste request
 	uint8_t *msg_req_paste = malloc(CB_HEADER_SIZE + CB_DATA_MAX_SIZE);
+	if (msg_req_paste == NULL) eperror(errno);
 	make_msg(msg_req_paste, CB_CMD_REQ_PASTE, (uint8_t) region, 0, NULL);
 	ret = send_msg(clipboard_id, 0, msg_req_paste);
 	if (ret == 0) goto out_req; // Sending failed
 
 	// Get the server's response
 	uint8_t *msg_resp = malloc(CB_HEADER_SIZE + CB_DATA_MAX_SIZE);
+	if (msg_resp == NULL) eperror(errno);
 	ret = recv_msg(clipboard_id, msg_resp);
 	if (ret == 0) goto out_resp; // Receiving failed
 
@@ -137,7 +140,7 @@ int clipboard_paste(int clipboard_id, int region, void *buf, size_t count)
 	uint8_t resp_region; // TODO: uneeded? NO maybe replies can be stateless for mega performance
 	uint32_t resp_data_size;
 	void *resp_data = NULL;
-	parse_msg(msg_resp, &resp_cmd, &resp_region, &resp_data_size, resp_data);
+	parse_msg(msg_resp, &resp_cmd, &resp_region, &resp_data_size, &resp_data);
 	// TODO: these should never happen
 	assert(resp_region == region);
 	assert(resp_cmd == CB_CMD_PASTE);

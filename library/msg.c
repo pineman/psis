@@ -68,7 +68,7 @@ int send_msg(int clipboard_id, uint32_t data_size, uint8_t *msg)
 
 // Read and parse msg_buf to the arguments given by reference.
 // if data_size == 0, data is ignored.
-void parse_msg(uint8_t *msg_buf, uint8_t *cmd, uint8_t *region, uint32_t *data_size, void *data)
+void parse_msg(uint8_t *msg_buf, uint8_t *cmd, uint8_t *region, uint32_t *data_size, void **data)
 {
 	int i = 0;
 
@@ -86,7 +86,7 @@ void parse_msg(uint8_t *msg_buf, uint8_t *cmd, uint8_t *region, uint32_t *data_s
 
 	// Skip data for messages without data (data_size = 0)
 	if (data_size != 0) {
-		data = msg_buf+i;
+		*data = msg_buf+i;
 	}
 }
 
