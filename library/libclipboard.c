@@ -7,8 +7,8 @@
 #include <sys/socket.h>
 #include <sys/un.h>
 
-#include "common.h"
-#include "msg.h"
+#include "cb_common.h"
+#include "cb_msg.h"
 
 #define MIN(a, b) ((a) < (b) ? a : b)
 

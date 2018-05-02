@@ -5,7 +5,8 @@
 #include <sys/un.h>
 #include <pthread.h>
 
-#include "common.h"
+#include "cb_common.h"
+#include "cb_msg.h"
 #include "local.h"
 
 // Listen UNIX on getcwd()/`CB_SOCKET`for local app connections

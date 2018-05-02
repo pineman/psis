@@ -5,12 +5,12 @@ CFLAGS=-Wall -Wextra -pedantic -std=c99 -pthread
 CFLAGS+=-g -Og
 #CFLAGS+=-pg
 #CXXFLAGS=$(CFLAGS)
-CPPFLAGS=-I../library/ -I..
+CPPFLAGS=-I../library -I../cb_common
 LDFLAGS=-pthread
 LDLIBS=
 SRCDIR=.
 SRC!=find $(SRCDIR) -type f -name "*.c"
-LIB_OBJ!=find ../library -type f -name "*.o"
+LIB_OBJ!=find ../library ../cb_common -type f -name "*.o"
 
 all: $(SRC:%.c=%)
 

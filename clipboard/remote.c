@@ -3,7 +3,8 @@
 #include <arpa/inet.h>
 #include <pthread.h>
 
-#include "common.h"
+#include "cb_common.h"
+#include "cb_msg.h"
 #include "remote.h"
 
 // Listen INET on a random port for remote clipboard connections

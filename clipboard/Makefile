@@ -5,7 +5,7 @@ CFLAGS=-Wall -Wextra -pedantic -std=c99 -pthread
 CFLAGS+=-g -Og
 #CFLAGS+=-pg
 #CXXFLAGS=$(CFLAGS)
-CPPFLAGS=-I../
+CPPFLAGS=-I../cb_common
 LDFLAGS=-pthread
 LDLIBS=
 SRCDIR=.

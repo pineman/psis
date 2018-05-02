@@ -4,7 +4,7 @@
 #include <signal.h>
 #include <pthread.h>
 
-#include "common.h"
+#include "cb_common.h"
 #include "local.h"
 #include "remote.h"
 
@@ -28,6 +28,7 @@ int main(int argc, char *argv[])
 		}
 		// Connected mode
 		printf("Connecting to %s:%s\n", argv[2], argv[3]);
+
 		// TODO: Connect to a parent remote clipboard given in argv[]
 	}
 

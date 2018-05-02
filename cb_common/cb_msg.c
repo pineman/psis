@@ -3,7 +3,7 @@
 
 #include <sys/socket.h>
 
-#include "common.h"
+#include "cb_common.h"
 
 // Modify a buffer msg_buf to become a message with given arguments by value.
 // Arguments are COPIED to msg_buf.
