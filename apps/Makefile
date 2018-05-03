@@ -7,16 +7,15 @@ CFLAGS+=-g -Og
 #CXXFLAGS=$(CFLAGS)
 CPPFLAGS=-I../library -I../cb_common
 LDFLAGS=-pthread
-LDLIBS=
+LDLIBS!=find ../library ../cb_common -type f -name "*.o"
 SRCDIR=.
 SRC!=find $(SRCDIR) -type f -name "*.c"
-LIB_OBJ!=find ../library ../cb_common -type f -name "*.o"
 
 all: $(SRC:%.c=%)
 
 %: %.c $(LIB_OBJ)
 	$(CC) -c -o $@.o $(CPPFLAGS) $(CFLAGS) $<
-	$(CC) -o $@ $(LDFLAGS) $(LDLIBS) $@.o $(LIB_OBJ)
+	$(CC) -o $@ $(LDFLAGS) $(LDLIBS) $@.o
 
 .PHONY: clean
 clean:

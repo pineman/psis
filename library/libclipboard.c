@@ -29,7 +29,7 @@ int clipboard_connect(char *clipboard_dir)
 
 	// Open a socket to the local clipboard server at local path `clipboard_dir`/CLIPBOARD_SOCKET
 	clipboard_fd = socket(AF_UNIX, SOCK_STREAM, 0);
-	if (clipboard_fd == -1) eperror(errno);
+	if (clipboard_fd == -1) emperror(errno);
 
 	struct sockaddr_un clipboard_addr;
 	clipboard_addr.sun_family = AF_UNIX;
@@ -92,7 +92,7 @@ int clipboard_copy(int clipboard_id, int region, void *buf, size_t count)
 
 	// Send the 'copy' message
 	uint8_t *msg_copy = malloc(CB_HEADER_SIZE + CB_DATA_MAX_SIZE);
-	if (msg_copy == NULL) eperror(errno);
+	if (msg_copy == NULL) emperror(errno);
 	make_msg(msg_copy, CB_CMD_COPY, (uint8_t) region, data_size, buf);
 	ret = send_msg(clipboard_id, data_size, msg_copy);
 
@@ -121,14 +121,14 @@ int clipboard_paste(int clipboard_id, int region, void *buf, size_t count)
 
 	// Send a paste request
 	uint8_t *msg_req_paste = malloc(CB_HEADER_SIZE + CB_DATA_MAX_SIZE);
-	if (msg_req_paste == NULL) eperror(errno);
+	if (msg_req_paste == NULL) emperror(errno);
 	make_msg(msg_req_paste, CB_CMD_REQ_PASTE, (uint8_t) region, 10, "req_paste"); // TODO: data to send on req_paste?
 	ret = send_msg(clipboard_id, 10, msg_req_paste);
 	if (ret == 0) goto out_req; // Sending failed
 
 	// Get the server's response
 	uint8_t *msg_resp = malloc(CB_HEADER_SIZE + CB_DATA_MAX_SIZE);
-	if (msg_resp == NULL) eperror(errno);
+	if (msg_resp == NULL) emperror(errno);
 	ret = recv_msg(clipboard_id, msg_resp);
 	if (ret == 0) goto out_resp; // Receiving failed
 
@@ -166,9 +166,9 @@ out_req:
  *
  * This function returns a positive integer corresponding to the number of bytes copied or 0 in case of error (invalid clipboard_id, invalid region or local clipboard unavailable).
 */
-int clipboard_wait(int clipboard_id, int region, void *buf, size_t count)
-{
-}
+//int clipboard_wait(int clipboard_id, int region, void *buf, size_t count)
+//{
+//}
 
 /*
  * This function closes the connection between the application and the local clipboard.
@@ -181,5 +181,5 @@ void clipboard_close(int clipboard_id)
 	int r;
 
 	r = close(clipboard_id);
-	if (r == -1) eperror(errno);
+	if (r == -1) emperror(errno);
 }

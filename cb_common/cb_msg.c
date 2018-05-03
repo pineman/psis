@@ -4,6 +4,7 @@
 #include <sys/socket.h>
 
 #include "cb_common.h"
+#include "cb_msg.h"
 
 // Modify a buffer msg_buf to become a message with given arguments by value.
 // Arguments are COPIED to msg_buf.
@@ -48,7 +49,7 @@ int send_msg(int clipboard_id, uint32_t data_size, uint8_t *msg)
 			//mperror(errno); // TODO: remove
 		}
 		else {
-			eperror(errno);
+			emperror(errno);
 		}
 	}
 	else if (r == msg_size) {
@@ -78,7 +79,7 @@ int erecv(int sock_fd, void *buf, size_t len)
 			// Return zero when there's a connection error
 			return 0;
 		else
-			eperror(errno);
+			emperror(errno);
 	}
 
 	return r;

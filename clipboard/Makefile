@@ -13,7 +13,7 @@ SRC!=find $(SRCDIR) -type f -name "*.c"
 
 # Define executables and their link dependencies here
 EXECS = clipboard
-clipboard_DEPS = main.c local.c remote.c
+clipboard_DEPS = main.c local.c remote.c parent.c
 clipboard_LIBS =
 
 ###############################################################################

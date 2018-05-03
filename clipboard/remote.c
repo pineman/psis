@@ -5,6 +5,8 @@
 
 #include "cb_common.h"
 #include "cb_msg.h"
+
+#include "clipboard.h"
 #include "remote.h"
 
 // Listen INET on a random port for remote clipboard connections
@@ -14,7 +16,7 @@ int listen_remote(void)
 
 	int remote_socket;
 	remote_socket = socket(AF_INET, SOCK_STREAM, 0);
-	if (remote_socket == -1) eperror(errno);
+	if (remote_socket == -1) emperror(errno);
 
 	struct sockaddr_in local_addr;
 	//local_addr.sin_family = AF_INET;
@@ -23,18 +25,18 @@ int listen_remote(void)
 	socklen_t local_addrlen = sizeof(struct sockaddr_in);
 
 	//r = bind(remote_socket, (struct sockaddr *) &local_addr, local_addrlen);
-	//if (r == -1) eperror(errno);
+	//if (r == -1) emperror(errno);
 	r = listen(remote_socket, SOMAXCONN);
-	if (r == -1) eperror(errno);
+	if (r == -1) emperror(errno);
 
 	r = getsockname(remote_socket, (struct sockaddr *) &local_addr, &local_addrlen);
-	if (r == -1) eperror(errno);
+	if (r == -1) emperror(errno);
 	printf("Listening for remote clipboards on %s:%d\n", inet_ntoa(local_addr.sin_addr), ntohs(local_addr.sin_port));
 
 	return remote_socket;
 }
 
-void *remote_accept_thread(void *arg)
+void *remote_accept_loop(void *arg)
 {
 	int r;
 	int remote_socket = listen_remote();

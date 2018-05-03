@@ -6,10 +6,11 @@
  * Leave clipboard server replication for later (single mode first)
 
 ### TODO
- * Do all errors cause an `exit()`? Most of them except stuff like `write` (remote end gone - `EPIPE`) and `read` (= 0 means `EOF`) and `unlink` (ignore ENOENT)
  * Remember to handle signals (probably)
  * Don't fuck up `\0`
  * Problems with buffer size mismatches between library and server on copy and paste: prof. says truncate => problem with missing `\0`. prof also said do w/e u want as long as its decent => realloc is stupid
+ * Header guards
+ * Thread cleanup on SIGINT or other error that causes exit()
 
 # Apps (clients)
  * Apps may connect to more than one local clipboard server, by the server's UDS, whose path is passed to `clipboard_connect`.

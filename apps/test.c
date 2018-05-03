@@ -8,7 +8,7 @@
 #include <time.h>
 #include <stddef.h>
 
-#define eperror(r) { fprintf(stderr, "%s:%d errno = %d: %s\n", __FILE__, __LINE__-1, r, strerror(r)); exit(r); }
+#define emperror(r) { fprintf(stderr, "%s:%d errno = %d: %s\n", __FILE__, __LINE__-1, r, strerror(r)); exit(r); }
 
 #include "libclipboard.h"
 #include "cb_common.h"
