@@ -6,10 +6,8 @@
  * Leave clipboard server replication for later (single mode first)
 
 ### TODO
- * Remember to handle signals (probably)
- * Don't fuck up `\0`
- * Problems with buffer size mismatches between library and server on copy and paste: prof. says truncate => problem with missing `\0`. prof also said do w/e u want as long as its decent => realloc is stupid
  * Header guards
+ * Remember to handle signals (probably)
  * Thread cleanup on SIGINT or other error that causes exit()
  * probably don't use exit() or pthread_exit => Cancel threads and return
 
@@ -39,6 +37,7 @@
  * When we receive updates from remote clipboards, do we need to push them to the app? Or are they in charge of getting new stuff?
 
 ### Clipboard Protocol
+ * Exactly the same as the library protocol?
 
 ### Libary protocol
  * Between library and clipboard server

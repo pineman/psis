@@ -11,10 +11,10 @@
  */
 
 enum cb_cmd {CB_CMD_COPY, CB_CMD_REQ_PASTE, CB_CMD_PASTE};
+#define CB_REQ_PASTE_DATA "req_paste"
+#define CB_REQ_PASTE_DATA_SIZE 10
 #define CB_HEADER_SIZE 1 + 1 + 4
 #define CB_DATA_MAX_SIZE 10+1
-
-bool cb_sanity_check(int region, size_t count, void *buf);
 
 void make_msg(uint8_t *msg_buf, uint8_t cmd, uint8_t region, uint32_t data_size, void *data);
 int send_msg(int clipboard_id, uint8_t cmd, uint8_t region, size_t count, void *buf);

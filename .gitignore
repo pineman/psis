@@ -1,5 +1,4 @@
-*.o
-
+.obj
+apps/test
 clipboard/clipboard
-clipboard/obj
-clipboard/.dummy
+.dummy

@@ -7,18 +7,6 @@
 #include "cb_common.h"
 #include "cb_msg.h"
 
-// Check if count > 0, buf has content, and region is valid
-bool cb_sanity_check(int region, size_t count, void *buf)
-{
-	// count must be >0 and buf must contain something
-	if (count == 0 || buf == NULL) return false;
-
-	// region must be 0..CB_NUM_REGIONS-1
-	if (region >= CB_NUM_REGIONS || region < 0) return false;
-
-	return true;
-}
-
 // Modify a buffer msg_buf to become a message with given arguments by value.
 // Arguments are COPIED to msg_buf.
 // Always add a \0 at the end => actual message size is data_size + 1
@@ -52,8 +40,11 @@ int send_msg(int clipboard_id, uint8_t cmd, uint8_t region, size_t count, void *
 {
 	int r, ret;
 
-	r = cb_sanity_check(region, count, buf);
-	if (r == false) return 0;
+	// count must be >0 and buf must contain something
+	if (count == 0 || buf == NULL) return 0;
+
+	// region must be 0..CB_NUM_REGIONS-1
+	if (region >= CB_NUM_REGIONS) return 0;
 
 	// Limit *data_size to CB_DATA_MAX_SIZE-1 bytes
 	// (save one for extra \0)

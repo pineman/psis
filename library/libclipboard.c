@@ -89,7 +89,7 @@ int clipboard_paste(int clipboard_id, int region, void *buf, size_t count)
 	int ret;
 
 	// Send a paste request
-	ret = send_msg(clipboard_id, CB_CMD_REQ_PASTE, (uint8_t) region, 10, "req_paste"); // TODO: data to send on req_paste?
+	ret = send_msg(clipboard_id, CB_CMD_REQ_PASTE, (uint8_t) region, CB_REQ_PASTE_DATA_SIZE, CB_REQ_PASTE_DATA);
 	if (ret == 0) return ret; // Sending failed
 
 	// Get the server's response
