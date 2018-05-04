@@ -69,18 +69,11 @@ int send_msg(int clipboard_id, uint8_t cmd, uint8_t region, size_t count, void *
 	if (msg_buf == NULL) emperror(errno);
 	make_msg(msg_buf, cmd, region, data_size, buf);
 
-	puts("send");
-	for (int i = 0; i < msg_size; i++) {
-		printf("%#x ", msg_buf[i]);
-	}
-	puts("");
-
 	r = send(clipboard_id, msg_buf, msg_size, MSG_NOSIGNAL);
 	if (r == -1) {
 		if (errno == EBADF || errno == ECONNRESET || errno == EACCES || errno == EPIPE) {
 			// Return zero when there's a connection error
 			ret = 0;
-			emperror(errno); // TODO: remove
 		}
 		else {
 			emperror(errno);
@@ -114,7 +107,6 @@ int erecv(int sock_fd, void *buf, size_t len)
 		if (errno == EBADF || errno == ECONNRESET || errno == EACCES || errno == EPIPE) {
 			// Return zero when there's a connection error
 			return 0;
-			emperror(errno); // TODO: remove
 		}
 		else {
 			emperror(errno);
@@ -137,10 +129,6 @@ int recv_msg(int clipboard_id, uint8_t *cmd, uint8_t *region, size_t count, void
 	// Get the message header
 	r = erecv(clipboard_id, (void *) header_buf, CB_HEADER_SIZE);
 	if (r == 0) goto out_hdr;
-	puts("recv");
-	for (int i = 0; i < CB_HEADER_SIZE; i++) {
-		printf("%#x ", header_buf[i]);
-	}
 
 	// Get data_size from the header (1+1 bytes up)
 	// + 1 for extra \0 originally sent
@@ -161,15 +149,9 @@ int recv_msg(int clipboard_id, uint8_t *cmd, uint8_t *region, size_t count, void
 	// region (1 byte)
 	*region = header_buf[1];
 
-	for (int i = 0; i < resp_data_size; i++) {
-		printf("%#x ", data_buf[i]);
-	}
-	puts("");
-
 	if (resp_data_size > count) {
 		// User buf is too small for the message. Truncate and add a \0 at the end.
 		memcpy(buf, (void *) data_buf, count);
-		puts("recv: adding null");
 		((char *) buf)[count-1] = '\0';
 		ret = count;
 	}
@@ -177,7 +159,8 @@ int recv_msg(int clipboard_id, uint8_t *cmd, uint8_t *region, size_t count, void
 		// User buf big enough for the message, which should already contain
 		// at least one \0 at the end, added by send_msg
 		memcpy(buf, (void *) data_buf, resp_data_size);
-		ret = resp_data_size - 1; // don't count the safety \0
+		// don't count the safety \0 as it's not part of the user bytes
+		ret = resp_data_size - 1;
 	}
 
 out_data:

@@ -29,12 +29,7 @@ int main(int argc, char *argv[])
 
 	char buf2[3] = {0};
 	r = clipboard_paste(cb, 8, (void *) buf2, sizeof(buf2));
-	printf("paste returned %d: %s\n", r, buf2);
-	puts("test");
-	for (int i = 0; i < r; i++) {
-		printf("%#x ", buf2[i]);
-	}
-	puts("");
+	printf("paste returned %d: %s, sizeof(buf2) = %d\n", r, buf2, sizeof(buf2));
 	if (r == 0) return EXIT_FAILURE;
 
 	return EXIT_SUCCESS;
