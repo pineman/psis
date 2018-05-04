@@ -52,25 +52,6 @@ int clipboard_connect(char *clipboard_dir)
 	return clipboard_fd;
 }
 
-// Perform basic sanity checks to arguments, truncate `count` to a maximum
-// of CB_DATA_MAX_SIZE bytes and store that in *data_size
-bool cb_sanity_check(uint32_t *data_size, int region, void *buf, size_t count)
-{
-	// count must be >0 and buf must contain something
-	if (count == 0 || buf == NULL) return false;
-
-	// region must be 0..CB_NUM_REGIONS-1
-	if (region >= CB_NUM_REGIONS || region < 0) return false;
-
-	// Truncate data to CB_DATA_MAX_SIZE bytes
-	*data_size = (uint32_t) count;
-	if (*data_size > CB_DATA_MAX_SIZE) {
-		*data_size = CB_DATA_MAX_SIZE;
-	}
-
-	return true;
-}
-
 /*
  * This function copies the data pointed by buf to a region on the local clipboard.
  *
@@ -84,19 +65,11 @@ bool cb_sanity_check(uint32_t *data_size, int region, void *buf, size_t count)
  */
 int clipboard_copy(int clipboard_id, int region, void *buf, size_t count)
 {
-	int r, ret;
-
-	uint32_t data_size;
-	r = cb_sanity_check(&data_size, region, buf, count);
-	if (r == false) return 0;
+	int ret;
 
 	// Send the 'copy' message
-	uint8_t *msg_copy = malloc(CB_HEADER_SIZE + CB_DATA_MAX_SIZE);
-	if (msg_copy == NULL) emperror(errno);
-	make_msg(msg_copy, CB_CMD_COPY, (uint8_t) region, data_size, buf);
-	ret = send_msg(clipboard_id, data_size, msg_copy);
+	ret = send_msg(clipboard_id, CB_CMD_COPY, (uint8_t) region, count, buf);
 
-	free(msg_copy);
 	return ret;
 }
 
@@ -113,45 +86,22 @@ int clipboard_copy(int clipboard_id, int region, void *buf, size_t count)
  */
 int clipboard_paste(int clipboard_id, int region, void *buf, size_t count)
 {
-	int r, ret;
-
-	uint32_t req_data_size;
-	r = cb_sanity_check(&req_data_size, region, buf, count);
-	if (r == false) return 0;
+	int ret;
 
 	// Send a paste request
-	uint8_t *msg_req_paste = malloc(CB_HEADER_SIZE + CB_DATA_MAX_SIZE);
-	if (msg_req_paste == NULL) emperror(errno);
-	make_msg(msg_req_paste, CB_CMD_REQ_PASTE, (uint8_t) region, 10, "req_paste"); // TODO: data to send on req_paste?
-	ret = send_msg(clipboard_id, 10, msg_req_paste);
-	if (ret == 0) goto out_req; // Sending failed
+	ret = send_msg(clipboard_id, CB_CMD_REQ_PASTE, (uint8_t) region, 10, "req_paste"); // TODO: data to send on req_paste?
+	if (ret == 0) return ret; // Sending failed
 
 	// Get the server's response
-	uint8_t *msg_resp = malloc(CB_HEADER_SIZE + CB_DATA_MAX_SIZE);
-	if (msg_resp == NULL) emperror(errno);
-	ret = recv_msg(clipboard_id, msg_resp);
-	if (ret == 0) goto out_resp; // Receiving failed
-
-	// Parse the server's response
 	uint8_t resp_cmd;
 	uint8_t resp_region; // TODO: uneeded? NO maybe replies can be stateless for mega performance
-	uint32_t resp_data_size;
-	void *resp_data = NULL;
-	parse_msg(msg_resp, &resp_cmd, &resp_region, &resp_data_size, &resp_data);
+	ret = recv_msg(clipboard_id, &resp_cmd, &resp_region, count, buf);
+	if (ret == 0) return ret; // Receiving failed
+
 	// TODO: these should never happen probably
 	assert(resp_region == region);
 	assert(resp_cmd == CB_CMD_PASTE);
 
-	// Truncate data to the response's data_size or user requested data_size,
-	// whichever is smallest
-	resp_data_size = MIN(resp_data_size, req_data_size);
-	// Everything OK, copy data received from the server to the user buf.
-	memcpy(buf, resp_data, resp_data_size);
-
-out_resp:
-	free(msg_resp);
-out_req:
-	free(msg_req_paste);
 	return ret;
 }
 

@@ -20,17 +20,21 @@ int main(int argc, char *argv[])
 	if (argc != 2) return EXIT_FAILURE;
 
 	int cb = clipboard_connect(argv[1]);
-	printf("cb = %d\n", cb);
 	if (cb == -1) return EXIT_FAILURE;
 
-	char buf1[] = "Hello from app!";
+	char buf1[] = "Heilo";
 	r = clipboard_copy(cb, 8, buf1, sizeof(buf1));
-	printf("copy returned %d\n", r);
+	printf("copy returned %d, sizeof(buf1) = %lu\n", r, sizeof(buf1));
 	if (r == 0) return EXIT_FAILURE;
 
-	char buf2[10] = {0};
+	char buf2[3] = {0};
 	r = clipboard_paste(cb, 8, (void *) buf2, sizeof(buf2));
 	printf("paste returned %d: %s\n", r, buf2);
+	puts("test");
+	for (int i = 0; i < r; i++) {
+		printf("%#x ", buf2[i]);
+	}
+	puts("");
 	if (r == 0) return EXIT_FAILURE;
 
 	return EXIT_SUCCESS;

@@ -11,6 +11,7 @@
  * Problems with buffer size mismatches between library and server on copy and paste: prof. says truncate => problem with missing `\0`. prof also said do w/e u want as long as its decent => realloc is stupid
  * Header guards
  * Thread cleanup on SIGINT or other error that causes exit()
+ * probably don't use exit() or pthread_exit => Cancel threads and return
 
 # Apps (clients)
  * Apps may connect to more than one local clipboard server, by the server's UDS, whose path is passed to `clipboard_connect`.
@@ -45,4 +46,4 @@
  * `command` is 1 byte `uint8_t`
  * `region` is 1 byte `uint8_t`
  * `size` is 4 bytes `uint32_t`
- * `data` is whatever `size`
+ * `data` is whatever `size + 1` (+ 1 for extra \0)

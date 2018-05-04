@@ -13,7 +13,7 @@ SRC!=find $(SRCDIR) -type f -name "*.c"
 
 all: $(SRC:%.c=%)
 
-%: %.c $(LIB_OBJ)
+%: %.c $(LDLIBS)
 	$(CC) -c -o $@.o $(CPPFLAGS) $(CFLAGS) $<
 	$(CC) -o $@ $(LDFLAGS) $(LDLIBS) $@.o
 
