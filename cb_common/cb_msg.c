@@ -131,16 +131,16 @@ int recv_msg(int clipboard_id, uint8_t *cmd, uint8_t *region, size_t count, void
 	if (r == 0) goto out_hdr;
 
 	// Get data_size from the header (1+1 bytes up)
-	// + 1 for extra \0 originally sent
 	uint32_t resp_data_size = 0;
-	resp_data_size = ((uint32_t) *(header_buf+1+1)) + 1;
+	resp_data_size = ((uint32_t) *(header_buf+1+1));
 
 	// Allocate space to receive data
-	uint8_t *data_buf = malloc(resp_data_size);
+	// + 1 for extra \0 originally sent
+	uint8_t *data_buf = malloc(resp_data_size + 1);
 	if (data_buf == NULL) emperror(errno);
 
 	// Get clipboard data
-	ret = erecv(clipboard_id, (void *) data_buf, (size_t) resp_data_size);
+	ret = erecv(clipboard_id, (void *) data_buf, (size_t) resp_data_size + 1);
 	if (ret == 0) goto out_data;
 
 	// command (1 byte)
@@ -149,7 +149,7 @@ int recv_msg(int clipboard_id, uint8_t *cmd, uint8_t *region, size_t count, void
 	// region (1 byte)
 	*region = header_buf[1];
 
-	if (resp_data_size > count) {
+	if (resp_data_size + 1 > count) {
 		// User buf is too small for the message. Truncate and add a \0 at the end.
 		memcpy(buf, (void *) data_buf, count);
 		((char *) buf)[count-1] = '\0';
@@ -158,9 +158,9 @@ int recv_msg(int clipboard_id, uint8_t *cmd, uint8_t *region, size_t count, void
 	else {
 		// User buf big enough for the message, which should already contain
 		// at least one \0 at the end, added by send_msg
-		memcpy(buf, (void *) data_buf, resp_data_size);
+		memcpy(buf, (void *) data_buf, resp_data_size + 1);
 		// don't count the safety \0 as it's not part of the user bytes
-		ret = resp_data_size - 1;
+		ret = resp_data_size;
 	}
 
 out_data:
