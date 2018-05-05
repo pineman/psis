@@ -32,6 +32,7 @@ int clipboard_connect(char *clipboard_dir)
 	struct sockaddr_un clipboard_addr;
 	clipboard_addr.sun_family = AF_UNIX;
 	// Maximum size of sockaddr_un.sun_path for temp buffer
+    // TODO: test if sizeof(clipboard_addr.sun_path) works
 	int path_buf_size = sizeof(struct sockaddr_un) - offsetof(struct sockaddr_un, sun_path);
 	char path_buf[path_buf_size];
 	// Copy `clipboard_dir` and concatenate with `CLIPBOARD_SOCKET` to get the

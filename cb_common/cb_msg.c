@@ -113,6 +113,12 @@ int recv_msg(int clipboard_id, uint8_t *cmd, uint8_t *region, size_t count, void
 {
 	int r, ret = 0;
 
+	// count must be >0 and buf must contain something
+	if (count == 0 || buf == NULL) return 0;
+
+	// region must be 0..CB_NUM_REGIONS-1
+	if (*region >= CB_NUM_REGIONS) return 0;
+
 	// Allocate space to receive header
 	uint8_t *header_buf = malloc(CB_HEADER_SIZE);
 	if (header_buf == NULL) emperror(errno);
