@@ -10,8 +10,6 @@
 #include "cb_common.h"
 #include "cb_msg.h"
 
-#define MIN(a, b) ((a) < (b) ? a : b)
-
 // TODO: make critical sections (i.e. read/write [connect?]) thread-safe
 
 /*
