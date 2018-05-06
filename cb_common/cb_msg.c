@@ -1,5 +1,6 @@
 #include <stdint.h>
 #include <stdbool.h>
+#include <string.h>
 #include <assert.h>
 
 #include <sys/socket.h>
@@ -39,12 +40,6 @@ void make_msg(uint8_t *msg_buf, uint8_t cmd, uint8_t region, uint32_t data_size,
 int send_msg(int clipboard_id, uint8_t cmd, uint8_t region, size_t count, void *buf)
 {
 	int r, ret;
-
-	// count must be >0 and buf must contain something
-	if (count == 0 || buf == NULL) return 0;
-
-	// region must be 0..CB_NUM_REGIONS-1
-	if (region >= CB_NUM_REGIONS) return 0;
 
 	// Limit *data_size to CB_DATA_MAX_SIZE-1 bytes
 	// (save one for extra \0)
@@ -112,12 +107,6 @@ int erecv(int sock_fd, void *buf, size_t len)
 int recv_msg(int clipboard_id, uint8_t *cmd, uint8_t *region, size_t count, void *buf)
 {
 	int r, ret = 0;
-
-	// count must be >0 and buf must contain something
-	if (count == 0 || buf == NULL) return 0;
-
-	// region must be 0..CB_NUM_REGIONS-1
-	if (*region >= CB_NUM_REGIONS) return 0;
 
 	// Allocate space to receive header
 	uint8_t *header_buf = malloc(CB_HEADER_SIZE);

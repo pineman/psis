@@ -1,9 +1,10 @@
-#CC=clang
+CC=clang
 #CCX=
-CFLAGS=-Wall -Wextra -pedantic -std=c99 -pthread
+CFLAGS=-Wall -Wextra -pedantic -std=c11 -pthread
 #CFLAGS+=-O0
 CFLAGS+=-g -Og
 #CFLAGS+=-pg
+CFLAGS+=-fdiagnostics-color=always
 #CXXFLAGS=$(CFLAGS)
 CPPFLAGS=-I cb_common -I library
 LDFLAGS=-pthread
@@ -32,7 +33,7 @@ $(foreach exec,$(EXECS),$(eval $(call EXEC_templ,$(exec))))
 -include $(addprefix $(OBJDIR)/, $(SRC:.c=.d))
 $(OBJDIR)/%.d: %.c
 	@mkdir -p `dirname $@`
-	$(CC) $(CPPFLAGS) -MM -MF $@ $^
+	@$(CC) $(CPPFLAGS) -MM -MF $@ $^
 
 $(OBJDIR)/%.o: %.c
 	$(CC) -c -o $@ $(CPPFLAGS) $(CFLAGS) $<
@@ -42,7 +43,7 @@ $(OBJDIR)/%.o: %.c
 all: $(EXECS)
 
 clean:
-	@rm -rf $(OBJDIR) $(EXECS)
+	rm -rf $(OBJDIR) $(EXECS)
 
 # This rebuilds everything if the Makefile was modified
 # http://stackoverflow.com/questions/3871444/making-all-rules-depend-on-the-makefile-itself/3892826#3892826

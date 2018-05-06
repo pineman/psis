@@ -1,6 +1,7 @@
 #include <stdint.h>
 #include <stdbool.h>
 #include <stddef.h>
+#include <string.h>
 #include <assert.h>
 
 #include <unistd.h>
@@ -9,6 +10,8 @@
 
 #include "cb_common.h"
 #include "cb_msg.h"
+
+#include "libclipboard.h"
 
 // TODO: make critical sections (i.e. read/write [connect?]) thread-safe
 
@@ -31,16 +34,13 @@ int clipboard_connect(char *clipboard_dir)
 
 	struct sockaddr_un clipboard_addr;
 	clipboard_addr.sun_family = AF_UNIX;
-	// Maximum size of sockaddr_un.sun_path for temp buffer
-    // TODO: test if sizeof(clipboard_addr.sun_path) works
-	int path_buf_size = sizeof(struct sockaddr_un) - offsetof(struct sockaddr_un, sun_path);
-	char path_buf[path_buf_size];
+	char path_buf[sizeof(clipboard_addr.sun_path)];
 	// Copy `clipboard_dir` and concatenate with `CLIPBOARD_SOCKET` to get the
 	// socket path.
 	strcpy(path_buf, clipboard_dir);
 	strcat(path_buf, CB_SOCKET);
 	strcpy(clipboard_addr.sun_path, path_buf);
-	socklen_t clipboard_addrlen = offsetof(struct sockaddr_un, sun_path) + strlen(clipboard_addr.sun_path) + 1;
+	socklen_t clipboard_addrlen = sizeof(clipboard_addr);
 
 	// Connect to local clipboard server
 	r = connect(clipboard_fd, (struct sockaddr *) &clipboard_addr, clipboard_addrlen);
@@ -49,6 +49,18 @@ int clipboard_connect(char *clipboard_dir)
 
 	// Return the fd of the socket to local clipboard server
 	return clipboard_fd;
+}
+
+// Check for basic valid input
+static bool sanity_check(int region, void *buf, size_t count)
+{
+	// count must be >0 and buf must contain something
+	if (count == 0 || buf == NULL) return false;
+
+	// region must be 0..CB_NUM_REGIONS-1
+	if (region >= CB_NUM_REGIONS) return false;
+
+	return true;
 }
 
 /*
@@ -65,6 +77,8 @@ int clipboard_connect(char *clipboard_dir)
 int clipboard_copy(int clipboard_id, int region, void *buf, size_t count)
 {
 	int ret;
+
+	if (!sanity_check(region, buf, count)) return 0;
 
 	// Send the 'copy' message
 	ret = send_msg(clipboard_id, CB_CMD_COPY, (uint8_t) region, count, buf);
@@ -86,6 +100,8 @@ int clipboard_copy(int clipboard_id, int region, void *buf, size_t count)
 int clipboard_paste(int clipboard_id, int region, void *buf, size_t count)
 {
 	int ret;
+
+	if (!sanity_check(region, buf, count)) return 0;
 
 	// Send a paste request
 	ret = send_msg(clipboard_id, CB_CMD_REQ_PASTE, (uint8_t) region, CB_REQ_PASTE_DATA_SIZE, CB_REQ_PASTE_DATA);
