@@ -1,3 +1,5 @@
+#pragma once
+
 #include <arpa/inet.h>
 
 void validate_addr(char *addr, char *port, struct sockaddr_in *sockaddr);

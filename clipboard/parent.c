@@ -6,6 +6,7 @@
 #include <pthread.h>
 
 #include "cb_common.h"
+
 #include "clipboard.h"
 #include "parent.h"
 
@@ -52,17 +53,34 @@ int connect_parent(char *addr, char *port)
 	return parent;
 }
 
+void cleanup_serve_parent(void *arg)
+{
+	int r;
+
+	puts("cancelling parent thread");
+
+	int *parent = (int *) arg;
+	close(*parent);
+
+	r = pthread_mutex_lock(&mode_lock);
+	if (r != 0) emperror(r);
+	connected_mode = false;
+	r = pthread_mutex_unlock(&mode_lock);
+	if (r != 0) emperror(r);
+}
+
 void *serve_parent(void *arg)
 {
 	int r;
 
-	struct thread_args *targs = (struct thread_args *) arg;
+	char **argv = (char **) arg;
+	int parent = connect_parent(argv[2], argv[3]);
 
-	// Make thread non-joinable: no one is not waiting for us.
-	r = pthread_detach(targs->thread_id);
-	if (r != 0) emperror(r);
+	pthread_cleanup_push(cleanup_serve_parent, &parent);
 
-	close(targs->client);
+	sleep(100);
 
-	free(targs);
+	pthread_cleanup_pop(1);
+
+	pthread_cancel(pthread_self());
 }

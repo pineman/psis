@@ -1,3 +1,5 @@
+#pragma once
+
 #include <stdlib.h>
 
 int clipboard_connect(char *clipboard_dir);

@@ -6,9 +6,6 @@
  * Leave clipboard server replication for later (single mode first)
 
 ### TODO
- * Header guards
- * Remember to handle signals (probably)
- * Thread cleanup on SIGINT or other error that causes exit()
  * probably don't use exit() or pthread_exit => Cancel threads and return
 
 # Apps (clients)
@@ -34,7 +31,7 @@
  * Each local clipboard should create one thread for every connected application.
  * Regions will be protected by a lock.
  * Freitas: only one syncronization thread sends messages to children/parent, other client threads speak to it and enqueue messages ?
- * When we receive updates from remote clipboards, do we need to push them to the app? Or are they in charge of getting new stuff?
+ * ~~When we receive updates from remote clipboards, do we need to push them to the app? Or are they in charge of getting new stuff?~~
 
 ### Clipboard Protocol
  * Exactly the same as the library protocol?

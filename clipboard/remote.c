@@ -61,7 +61,7 @@ void *serve_remote_client(void *arg)
 
 	printf("new thread have client %d\n", c);
 
-	close(c);
+	sleep(100);
 
-	return NULL;
+	close(c);
 }

@@ -1,4 +1,5 @@
 #include <stddef.h>
+#include <string.h>
 
 #include <unistd.h>
 #include <sys/socket.h>
@@ -22,15 +23,12 @@ int listen_local(void)
 
 	struct sockaddr_un local_addr;
 	local_addr.sun_family = AF_UNIX;
-	// Maximum size of sockaddr_un.sun_path
-	int path_buf_size = sizeof(struct sockaddr_un) - offsetof(struct sockaddr_un, sun_path);
-	char path_buf[path_buf_size];
-
+	char path_buf[sizeof(local_addr.sun_path)];
 	// Get current working directory and concatenate with CB_SOCKET
-	if (getcwd(path_buf, path_buf_size) == NULL) emperror(errno);
+	if (getcwd(path_buf, sizeof(local_addr.sun_path)) == NULL) emperror(errno);
 	strcat(path_buf, CB_SOCKET);
 	strcpy(local_addr.sun_path, path_buf);
-	socklen_t local_addrlen = offsetof(struct sockaddr_un, sun_path) + strlen(local_addr.sun_path) + 1;
+	socklen_t local_addrlen = sizeof(local_addr);
 
 	r = unlink(local_addr.sun_path);
 	if (r == -1 && errno != ENOENT) emperror(errno);
@@ -44,11 +42,11 @@ int listen_local(void)
 	return local_socket;
 }
 
-void clean_up(void *arg)
+void cleanup_local_accept_loop(void *arg)
 {
+	puts("cancelling local accept loop thread");
 	int *local_socket = (int *) arg;
-	printf("cleaning up\n");
-	// TODO: cancel all our connections
+	// TODO: cancel all our connections/threads
 	close(*local_socket);
 }
 
@@ -61,9 +59,9 @@ void *local_accept_loop(void *arg) // TODO: abstract away into generic function?
 	// listen_local() is not a cancellation point therefore any cancellation
 	// requests will only be reacted to after listen_local(), i.e. local_socket
 	// is set.
-	pthread_cleanup_push(clean_up, &local_socket);
+	pthread_cleanup_push(cleanup_local_accept_loop, &local_socket);
 
-	// Don't quit on errors inside the accept loop. It's ok if one connection fails
+	// Don't exit() on errors inside the accept loop. It's ok if one connection fails
 	while (1) {
 		int client = accept(local_socket, NULL, 0);
 		if (client == -1) { mperror(errno); continue; }
@@ -77,8 +75,16 @@ void *local_accept_loop(void *arg) // TODO: abstract away into generic function?
 	}
 
 	pthread_cleanup_pop(1);
+	pthread_exit(NULL);
+	//return NULL;
+}
 
-	return NULL;
+void cleanup_local_client(void *arg)
+{
+	puts("cancelling local client thread");
+	struct thread_args *targs = (struct thread_args *) arg;
+	close(targs->client);
+	free(arg);
 }
 
 void *serve_local_client(void *arg)
@@ -90,14 +96,24 @@ void *serve_local_client(void *arg)
 	r = pthread_detach(targs->thread_id);
 	if (r != 0) emperror(r);
 
-	// pthread_cleanup_push(clean_up, &local_socket);
-	printf("new thread have client %d\n", targs->client);
+	pthread_cleanup_push(cleanup_local_client, arg);
 
-	sleep(100);
+	char *data1 = malloc(CB_DATA_MAX_SIZE);
+	char *data2 = malloc(CB_DATA_MAX_SIZE);
 
-	// pthread_cleanup_pop(1);
-	close(targs->client);
-	free(targs);
+	uint8_t cmd;
+	uint8_t region;
+	int s;
+	r = recv_msg(targs->client, &cmd, &region, CB_DATA_MAX_SIZE, data1);
+	s = r;
 
+	r = recv_msg(targs->client, &cmd, &region, CB_DATA_MAX_SIZE, data2);
+
+	r = send_msg(targs->client, CB_CMD_PASTE, region, s, data1);
+
+	free(data1);
+	free(data2);
+
+	pthread_cleanup_pop(1);
 	return NULL;
 }
