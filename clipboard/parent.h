@@ -1,6 +1,6 @@
 #pragma once
 
-#include <arpa/inet.h>
+#include <netinet/in.h>
 
 void validate_addr(char *addr, char *port, struct sockaddr_in *sockaddr);
 int connect_parent(char *addr, char *port);
