@@ -56,8 +56,10 @@ int main(int argc, char *argv[])
 	//pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
 
 	// Thread for parent connection
-	r = pthread_create(&parent_serve_thread, &attr, serve_parent, argv);
-	if (r != 0) emperror(r);
+	if (connected_mode) {
+		r = pthread_create(&parent_serve_thread, &attr, serve_parent, argv);
+		if (r != 0) emperror(r);
+	}
 	// Create listening threads
 	r = pthread_create(&local_accept_thread, &attr, local_accept_loop, NULL);
 	if (r != 0) emperror(r);
@@ -67,10 +69,9 @@ int main(int argc, char *argv[])
 	// Handle signals via sigwaitinfo() on main thread
 	while (1) {
 		int sig;
-		siginfo_t siginfo;
 
-		sig = sigwaitinfo(&allsig, &siginfo);
-		if (sig == -1) emperror(errno);
+		r = sigwait(&allsig, &sig);
+		if (r != 0) emperror(r);
 
 		if (sig == SIGINT) {
 			puts("Exiting...");
