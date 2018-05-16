@@ -66,23 +66,37 @@ void cleanup_serve_parent(void *arg)
 
 	r = pthread_mutex_lock(&mode_lock);
 	if (r != 0) emperror(r);
-	connected_mode = false;
+	// TODO: Now im the master!!
+	master = true;
 	r = pthread_mutex_unlock(&mode_lock);
 	if (r != 0) emperror(r);
 }
 
 void *serve_parent(void *arg)
 {
-	int r;
+	//int r;
 
 	char **argv = (char **) arg;
 	int parent = connect_parent(argv[2], argv[3]);
 
 	pthread_cleanup_push(cleanup_serve_parent, &parent);
 
+	/*
+	recv(buf)
+	// Got update from parent, write to my regions and send downwards to remotes
+	// TODO: same as global update in local and remote?
+	lock(regions[region]);
+	reigons[region].buf = buf
+	unlock(regions[region]);
+
+	lock(global_update)
+	for (remote in remotes) remote.send(buf)
+	unlock(global_update)
+	*/
+
 	sleep(100);
 
 	pthread_cleanup_pop(1);
 
-	pthread_cancel(pthread_self());
+	return NULL;
 }

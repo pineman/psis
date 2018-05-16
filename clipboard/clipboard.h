@@ -12,13 +12,13 @@ struct conn {
 	int sockfd;
 	pthread_mutex_t lock; // Protects writes to sockfd // TODO: can be rwlock?
 	// TODO: lock per connection or globally per update?
-	// TODO: pthread_t tid; // TO CANCEL THE THREAD
+	pthread_t tid; // TO CANCEL THE THREAD
+	struct conn *next;
 };
 
 struct region {
-	char data[CB_DATA_MAX_SIZE];
-	//time_t last_updated_time; // TODO
-	pthread_mutex_t lock; // Protects `data`
+	char *data; // Always changing on parent read()
+	pthread_mutex_t lock; // Protects `data` TODO: rwlock
 };
 
 struct thread_args {
@@ -28,6 +28,14 @@ struct thread_args {
 
 // Global array of regions
 extern struct region local_regions[CB_NUM_REGIONS];
-// Are we in connected mode?
-extern bool connected_mode;
-extern pthread_mutex_t mode_lock; // protects `connected_mode`
+
+// Global array of remote connections
+extern struct conn *child_conn;
+// Global array of local connections
+extern struct conn *app_conn;
+
+extern struct conn *parent_conn;
+
+// Are we in connected mode or are we the master (i.e. we have no parent)
+extern bool master;
+extern pthread_mutex_t mode_lock; // protects `master` boolean

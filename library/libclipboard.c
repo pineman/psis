@@ -34,10 +34,12 @@ int clipboard_connect(char *clipboard_dir)
 
 	struct sockaddr_un clipboard_addr;
 	clipboard_addr.sun_family = AF_UNIX;
+	// Maximum size of sockaddr_un.sun_path for temp buffer
 	char path_buf[sizeof(clipboard_addr.sun_path)];
 	// Copy `clipboard_dir` and concatenate with `CLIPBOARD_SOCKET` to get the
 	// socket path.
 	strcpy(path_buf, clipboard_dir);
+	strcat(path_buf, "/");
 	strcat(path_buf, CB_SOCKET);
 	strcpy(clipboard_addr.sun_path, path_buf);
 	socklen_t clipboard_addrlen = sizeof(clipboard_addr);
@@ -51,16 +53,13 @@ int clipboard_connect(char *clipboard_dir)
 	return clipboard_fd;
 }
 
-// Check for basic valid input
-static bool sanity_check(int region, void *buf, size_t count)
+static void sanity_check(void *buf, size_t count)
 {
-	// count must be >0 and buf must contain something
-	if (count == 0 || buf == NULL) return false;
-
-	// region must be 0..CB_NUM_REGIONS-1
-	if (region >= CB_NUM_REGIONS) return false;
-
-	return true;
+	// buf must be a valid pointer
+	assert(buf != NULL);
+	// count must not be 0, and must be less than UINT32_MAX
+	assert(count != 0);
+	assert(count <= UINT32_MAX);
 }
 
 /*
@@ -76,14 +75,17 @@ static bool sanity_check(int region, void *buf, size_t count)
  */
 int clipboard_copy(int clipboard_id, int region, void *buf, size_t count)
 {
-	int ret;
+	int r;
 
-	if (!sanity_check(region, buf, count)) return 0;
+	sanity_check(buf, count);
 
 	// Send the 'copy' message
-	ret = send_msg(clipboard_id, CB_CMD_COPY, (uint8_t) region, count, buf);
-
-	return ret;
+	r = send_msg(clipboard_id, CB_CMD_COPY, (uint8_t) region, (uint32_t) count);
+	if (r == 0) return 0;
+	// Send data
+	r = esend(clipboard_id, (void *) buf, count);
+	if (r == -1) r = 0; // return 0 on error
+	return r;
 }
 
 /*
@@ -99,25 +101,35 @@ int clipboard_copy(int clipboard_id, int region, void *buf, size_t count)
  */
 int clipboard_paste(int clipboard_id, int region, void *buf, size_t count)
 {
-	int ret;
+	int r;
 
-	if (!sanity_check(region, buf, count)) return 0;
+	sanity_check(buf, count);
 
 	// Send a paste request
-	ret = send_msg(clipboard_id, CB_CMD_REQ_PASTE, (uint8_t) region, CB_REQ_PASTE_DATA_SIZE, CB_REQ_PASTE_DATA);
-	if (ret == 0) return ret; // Sending failed
+	r = send_msg(clipboard_id, CB_CMD_REQ_PASTE, (uint8_t) region, 0);
+	if (r == 0) return 0; // Sending failed
 
 	// Get the server's response
 	uint8_t resp_cmd;
-	uint8_t resp_region; // TODO: uneeded? NO maybe replies can be stateless for mega performance
-	ret = recv_msg(clipboard_id, &resp_cmd, &resp_region, count, buf);
-	if (ret == 0) return ret; // Receiving failed
+	uint8_t resp_region;
+	uint32_t resp_data_size;
+	r = recv_msg(clipboard_id, &resp_cmd, &resp_region, &resp_data_size);
+	if (r == 0) return 0; // Receiving failed
 
 	// TODO: these should never happen probably
 	assert(resp_region == region);
 	assert(resp_cmd == CB_CMD_PASTE);
 
-	return ret;
+	// Get clipboard data
+	// TODO: Return number of read clipboard data bytes OR data_size???
+	size_t read_size;
+	if (resp_data_size > count)
+		read_size = count;
+	else
+		read_size = resp_data_size;
+	r = erecv(clipboard_id, (void *) buf, read_size);
+
+	return r;
 }
 
 /*

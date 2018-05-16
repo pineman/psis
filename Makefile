@@ -1,12 +1,12 @@
 CC=clang
 #CCX=
-CFLAGS=-Wall -Wextra -pedantic -std=c11 -pthread
-#CFLAGS+=-O0
-CFLAGS+=-g -Og
+CFLAGS=-Wall -Wextra -pedantic -std=c11 -pthread -Wunused-result
+CFLAGS+=-O3
+#CFLAGS+=-g -Og
 #CFLAGS+=-pg
 CFLAGS+=-fdiagnostics-color=always
 #CXXFLAGS=$(CFLAGS)
-CPPFLAGS=-I cb_common -I library
+CPPFLAGS=-I cb_common -I library -D_POSIX_C_SOURCE="200809L"
 LDFLAGS=-pthread
 LDLIBS=
 SRCDIR=.

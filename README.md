@@ -6,7 +6,12 @@
  * Leave clipboard server replication for later (single mode first)
 
 ### TODO
- * probably don't use exit() or pthread_exit => Cancel threads and return
+ * When a new clipboard connects to its parent, the parent has to send all its regions!
+ * set timeout on sockets? just in case?
+ * move asserts sanity check from library to cb_common
+ * pipe no parent?? só para o código ser igual?
+ * quando o meu parent morre agora sou eu o parent
+ * `serve_local_client` == `serve_remote_client` ??????
 
 # Apps (clients)
  * Apps may connect to more than one local clipboard server, by the server's UDS, whose path is passed to `clipboard_connect`.
@@ -24,19 +29,13 @@
 
 # Clipboard (server)
  * When starting, connect to another clipboard server given in the argv[].
- * Also need to define a Clipboard Protocol
  * Synchronize our local regions with the other remote servers. 
  * Each local clipboard should have one thread that receives connections from local applications.
  * Each local clipboard should have one thread that receives connections from cooperative remote clipboards.
  * Each local clipboard should create one thread for every connected application.
  * Regions will be protected by a lock.
- * Freitas: only one syncronization thread sends messages to children/parent, other client threads speak to it and enqueue messages ?
- * ~~When we receive updates from remote clipboards, do we need to push them to the app? Or are they in charge of getting new stuff?~~
 
-### Clipboard Protocol
- * Exactly the same as the library protocol?
-
-### Libary protocol
+### Local protocol
  * Between library and clipboard server
  * Message is: <command><region><size><data>
  * `command` is 1 byte `uint8_t`
