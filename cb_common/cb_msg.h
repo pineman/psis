@@ -17,11 +17,11 @@ enum cb_cmd {
 	CB_CMD_PASTE,
 	CB_NUM_CMDS // Number of commands, keep at the end
 };
-#define CB_REQ_PASTE_DATA "req_paste"
-#define CB_REQ_PASTE_DATA_SIZE 10
 
-int erecv(int sock_fd, void *buf, size_t len);
-int esend(int sock_fd, void *buf, size_t len);
-
-int send_msg(int clipboard_id, uint8_t cmd, uint8_t region, uint32_t data_size);
-int recv_msg(int clipboard_id, uint8_t *cmd, uint8_t *region, uint32_t *data_size);
+int cb_setsockopt(int sockfd);
+// Wrappers
+ssize_t cb_send(int sockfd, void *buf, size_t len);
+ssize_t cb_recv(int sockfd, void *buf, size_t len);
+// Send and receive messages
+ssize_t cb_send_msg(int clipboard_id, uint8_t cmd, uint8_t region, uint32_t data_size);
+ssize_t cb_recv_msg(int clipboard_id, uint8_t *cmd, uint8_t *region, uint32_t *data_size);

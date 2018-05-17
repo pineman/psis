@@ -21,7 +21,7 @@ int listen_local(void)
 
 	int local_socket;
 	local_socket = socket(AF_UNIX, SOCK_STREAM, 0);
-	if (local_socket == -1) emperror(errno);
+	if (local_socket == -1) cb_eperror(errno);
 
 	struct sockaddr_un local_addr;
 	local_addr.sun_family = AF_UNIX;
@@ -29,14 +29,14 @@ int listen_local(void)
 	socklen_t local_addrlen = sizeof(local_addr);
 
 	r = unlink(local_addr.sun_path);
-	if (r == -1 && errno != ENOENT) emperror(errno);
+	if (r == -1 && errno != ENOENT) cb_eperror(errno);
 	r = bind(local_socket, (struct sockaddr *) &local_addr, local_addrlen);
-	if (r == -1) emperror(errno);
+	if (r == -1) cb_eperror(errno);
 	r = listen(local_socket, SOMAXCONN);
-	if (r == -1) emperror(errno);
+	if (r == -1) cb_eperror(errno);
 
 	char path_buf[PATH_MAX];
-	if (getcwd(path_buf, PATH_MAX) == NULL) emperror(errno);
+	if (getcwd(path_buf, PATH_MAX) == NULL) cb_eperror(errno);
 
 	printf("Listening for local applications on %s/%s\n", path_buf, local_addr.sun_path);
 
@@ -51,7 +51,7 @@ void cleanup_app_accept(void *arg)
 	// TODO: cancel all our connections & threads
 
 	close(*local_socket);
-	unlink(CB_SOCKET);
+	//unlink(CB_SOCKET);
 }
 
 void *app_accept(void *arg) // TODO: abstract away into generic function?
@@ -66,14 +66,14 @@ void *app_accept(void *arg) // TODO: abstract away into generic function?
 	// Don't exit() on errors inside the accept loop. It's ok if one connection fails
 	while (1) {
 		int client = accept(app_socket, NULL, 0);
-		if (client == -1) { mperror(errno); continue; }
+		if (client == -1) { cb_perror(errno); continue; }
 
 		struct thread_args *targs = malloc(sizeof(struct thread_args));
-		if (targs == NULL) { mperror(errno); close(client); continue; }
+		if (targs == NULL) { cb_perror(errno); close(client); continue; }
 		targs->client = client;
 
 		r = pthread_create(&targs->thread_id, NULL, serve_app, targs);
-		if (r != 0) { mperror(r); close(targs->client); free(targs); continue; }
+		if (r != 0) { cb_perror(r); close(targs->client); free(targs); continue; }
 
 		// TODO: add connection to list
 	}
@@ -97,29 +97,35 @@ void *serve_app(void *arg)
 
 	pthread_cleanup_push(cleanup_serve_app, arg);
 
-	uint8_t cmd;
-	uint8_t region;
-	uint32_t data_size;
-	char *data;
-	int tmp;
-	while (1) {
-		r = recv_msg(targs->client, &cmd, &region, &data_size);
+	uint8_t cmd = 0;
+	uint8_t region = 0;
+	uint32_t data_size =0;
+	char *data = NULL;
+	uint32_t tmp = 0;
+	while (1)
+	{
+		r = cb_recv_msg(targs->client, &cmd, &region, &data_size);
 		if (r == 0) break; // TODO: client went bye bye
-		printf("serve_app: cmd = %d, region = %d, data_size = %d\n", cmd, region, data_size);
+		printf("[GOT] serve_app: cmd = %d, region = %d, data_size = %d\n", cmd, region, data_size);
 
 		if (cmd == CB_CMD_COPY) {
+			printf("[GOT] serve_app: got cmd copy\n");
+			// TODO: assert must be pthread_cancel or something
 			assert(data_size != 0);
 			data = malloc(data_size);
-			if (data == NULL) mperror(errno);
-			r = erecv(targs->client, data, data_size);
-			printf("serve_app: data = %s\n", data);
+			if (data == NULL) cb_perror(errno);
+			r = cb_recv(targs->client, data, data_size);
+			printf("[GOT] serve_app: data = %s, r = %d\n", data, r);
+			if (r == 0) break; // TODO: client went bye bye
 			tmp = data_size;
 		}
 		else if (cmd == CB_CMD_REQ_PASTE) {
 			assert(data_size == 0);
-			printf("serve_app: got req_paste\n");
-			r = send_msg(targs->client, CB_CMD_PASTE, region, tmp);
-			r = esend(targs->client, data, tmp);
+			printf("[GOT] serve_app: got cmd req_paste\n");
+			r = cb_send_msg(targs->client, CB_CMD_PASTE, region, tmp);
+			printf("[SEND] serve_app: cmd = %d, region = %d, data_size = %d, data = %s\n", CB_CMD_PASTE, region, tmp, data);
+			r = cb_send(targs->client, data, tmp);
+			printf("[SEND] serve_app: data = %s, r = %d\n", data, r);
 		}
 	}
 	free(data); // TODO: remove
@@ -127,7 +133,7 @@ void *serve_app(void *arg)
 	// Make thread non-joinable: accept loop cleanup will not join() us because
 	// we need to die right now.
 	r = pthread_detach(targs->thread_id);
-	if (r != 0) mperror(r);
+	if (r != 0) cb_perror(r);
 
 	pthread_cleanup_pop(1);
 	return NULL;

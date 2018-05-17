@@ -30,7 +30,7 @@ int clipboard_connect(char *clipboard_dir)
 
 	// Open a socket to the local clipboard server at local path `clipboard_dir`/CLIPBOARD_SOCKET
 	clipboard_fd = socket(AF_UNIX, SOCK_STREAM, 0);
-	if (clipboard_fd == -1) emperror(errno);
+	if (clipboard_fd == -1) return -1;
 
 	struct sockaddr_un clipboard_addr;
 	clipboard_addr.sun_family = AF_UNIX;
@@ -44,15 +44,21 @@ int clipboard_connect(char *clipboard_dir)
 	strcpy(clipboard_addr.sun_path, path_buf);
 	socklen_t clipboard_addrlen = sizeof(clipboard_addr);
 
+	// Try to set a sending timeout and ignore SIGPIPE.
+	r = cb_setsockopt(clipboard_fd);
+	if (r == -1) return -1;
+
 	// Connect to local clipboard server
 	r = connect(clipboard_fd, (struct sockaddr *) &clipboard_addr, clipboard_addrlen);
 	// Error connecting, errno is set
 	if (r == -1) return -1;
 
+
 	// Return the fd of the socket to local clipboard server
 	return clipboard_fd;
 }
 
+// Check for potencially fatal errors in the arguments coming the app.
 static void sanity_check(void *buf, size_t count)
 {
 	// buf must be a valid pointer
@@ -75,17 +81,25 @@ static void sanity_check(void *buf, size_t count)
  */
 int clipboard_copy(int clipboard_id, int region, void *buf, size_t count)
 {
-	int r;
+	ssize_t r;
 
+	// Check for fatal errors in arguments
 	sanity_check(buf, count);
 
 	// Send the 'copy' message
-	r = send_msg(clipboard_id, CB_CMD_COPY, (uint8_t) region, (uint32_t) count);
-	if (r == 0) return 0;
+	r = cb_send_msg(clipboard_id, CB_CMD_COPY, (uint8_t) region, (uint32_t) count);
+	// return 0 on error, errno is set
+	// error might be all the normal errors or EAGAIN/EWOULDBLOCK because
+	// clipboard_connect set a send timeout. It's up to the app to investigate
+	// errno. // TODO: remove this comment? it might confuse the prof
+	if (r == -1) return 0;
+	// Fatal error: app tried to send invalid message.
+	assert(r != -2);
+
 	// Send data
-	r = esend(clipboard_id, (void *) buf, count);
-	if (r == -1) r = 0; // return 0 on error
-	return r;
+	r = cb_send(clipboard_id, (void *) buf, count);
+	if (r == -1) return 0;
+	return (int) r;
 }
 
 /*
@@ -101,39 +115,55 @@ int clipboard_copy(int clipboard_id, int region, void *buf, size_t count)
  */
 int clipboard_paste(int clipboard_id, int region, void *buf, size_t count)
 {
-	int r;
+	ssize_t r;
 
+	// Check for fatal errors in arguments
 	sanity_check(buf, count);
 
-	// Send a paste request
-	r = send_msg(clipboard_id, CB_CMD_REQ_PASTE, (uint8_t) region, 0);
-	if (r == 0) return 0; // Sending failed
+	// Send a paste request (data_size = 0, no data is sent)
+	r = cb_send_msg(clipboard_id, CB_CMD_REQ_PASTE, (uint8_t) region, 0);
+	// return 0 on error, errno is set
+	if (r == -1) return 0;
+	// Fatal error: app tried to send invalid message.
+	assert(r != -2);
 
 	// Get the server's response
 	uint8_t resp_cmd;
 	uint8_t resp_region;
 	uint32_t resp_data_size;
-	r = recv_msg(clipboard_id, &resp_cmd, &resp_region, &resp_data_size);
-	if (r == 0) return 0; // Receiving failed
+	r = cb_recv_msg(clipboard_id, &resp_cmd, &resp_region, &resp_data_size);
+	if (r == -1 || r == 0) return 0; // Receiving failed
 
-	// TODO: these should never happen probably
+	// Fatal error: server did not reply correctly
 	assert(resp_region == region);
 	assert(resp_cmd == CB_CMD_PASTE);
 
+	// TODO: should the server send everything or just `count` bytes?
+	char *resp_data = malloc(resp_data_size);
 	// Get clipboard data
-	// TODO: Return number of read clipboard data bytes OR data_size???
-	size_t read_size;
-	if (resp_data_size > count)
-		read_size = count;
-	else
-		read_size = resp_data_size;
-	r = erecv(clipboard_id, (void *) buf, read_size);
+	r = cb_recv(clipboard_id, (void *) resp_data, resp_data_size);
+	if (r == -1 || r == 0) return 0; // Receiving failed
 
-	return r;
+	size_t copy_size = resp_data_size;
+	if (resp_data_size > count)
+		copy_size = count;
+	memcpy(buf, resp_data, copy_size);
+	// TODO: what do with the '\0's
+	if (((char *) buf)[copy_size-1] != '\0') {
+		// data from server was not null terminated (or buf was not big enough
+		// for it and it was truncated). Add a '\0'.
+		((char *)buf)[copy_size-1] = '\0'; // Possibly lost a byte of data
+	}
+	free(resp_data);
+
+	// TODO: Return number of read clipboard data bytes OR data_size???
+	// the prof said to return data_size to let the app know it might have more
+	// to read. but then should the server send everything or just `count` bytes?
+	return (int) copy_size;
 }
 
 /*
- * This function waits for a change on a certain region ( new copy), and when it happens the new data in that region is copied to memory pointed by buf. The copied data is stored in the memory pointed by buf up to a length of count.
+ * This function waits for a change on a certain region (new copy), and when it happens the new data in that region is copied to memory pointed by buf. The copied data is stored in the memory pointed by buf up to a length of count.
  *
  * Arguments:
  * clipboard_id – this argument corresponds to the value returned by clipboard_connect
@@ -155,8 +185,5 @@ int clipboard_paste(int clipboard_id, int region, void *buf, size_t count)
  */
 void clipboard_close(int clipboard_id)
 {
-	int r;
-
-	r = close(clipboard_id);
-	if (r == -1) emperror(errno);
+	close(clipboard_id);
 }

@@ -26,7 +26,7 @@ void validate_addr(char *addr, char *port, struct sockaddr_in *sockaddr)
 	unsigned long test = 0;
 	errno = 0;
 	test = strtoul(port, &check, 10);
-	if (errno != 0) emperror(errno);
+	if (errno != 0) cb_eperror(errno);
 	if (check == addr || test == 0 || test > UINT16_MAX) {
 		fprintf(stderr, "Port must be: 0 < <port> < %d\n", UINT16_MAX);
 		exit(EXIT_FAILURE);
@@ -44,10 +44,10 @@ int connect_parent(char *addr, char *port)
 	validate_addr(addr, port, &parent_addr);
 
 	int parent = socket(AF_INET, SOCK_STREAM, 0);
-	if (parent == -1) emperror(errno);
+	if (parent == -1) cb_eperror(errno);
 
 	r = connect(parent, (struct sockaddr *) &parent_addr, parent_addrlen);
-	if (r == -1) emperror(errno);
+	if (r == -1) cb_eperror(errno);
 
 	printf("Connected to parent remote clipboard %s:%d\n",
 		inet_ntoa(parent_addr.sin_addr), (int) ntohs(parent_addr.sin_port));
@@ -65,11 +65,11 @@ void cleanup_serve_parent(void *arg)
 	close(*parent);
 
 	r = pthread_mutex_lock(&mode_lock);
-	if (r != 0) emperror(r);
+	if (r != 0) cb_eperror(r);
 	// TODO: Now im the master!!
 	master = true;
 	r = pthread_mutex_unlock(&mode_lock);
-	if (r != 0) emperror(r);
+	if (r != 0) cb_eperror(r);
 }
 
 void *serve_parent(void *arg)

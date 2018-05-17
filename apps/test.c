@@ -8,8 +8,10 @@
 #include <time.h>
 #include <stddef.h>
 
+#define mperror(err) do { char __buf__[1024]; sprintf(__buf__, "%s:%d %s(), errno = %d", __FILE__, __LINE__-1, __func__, err); perror(__buf__); } while(0);
+#define emperror(err) do { mperror(err); exit(err); } while(0);
+
 #include "libclipboard.h"
-#include "cb_common.h"
 
 int main(int argc, char *argv[])
 {
@@ -29,6 +31,10 @@ int main(int argc, char *argv[])
 	r = clipboard_paste(cb, 8, (void *) buf2, sizeof(buf2));
 	if (r == 0) emperror(errno);
 	printf("paste returned %d: %s, sizeof(buf2) = %lu\n", r, buf2, sizeof(buf2));
+	for (int i = 0; i < 3; i++ ) {
+		printf("%d: %c\n", i, buf2[i]);
+	}
+	puts("");
 
 	return EXIT_SUCCESS;
 }

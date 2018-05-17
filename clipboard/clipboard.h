@@ -1,9 +1,17 @@
 #pragma once
 
+#include <stdlib.h>
+#include <stdio.h>
+#include <errno.h>
+
 #include <pthread.h>
 
 #include "cb_common.h"
 #include "cb_msg.h"
+
+#define cb_perror(err) do { char __buf__[1024]; sprintf(__buf__, "%s:%d %s(), errno = %d", __FILE__, __LINE__-1, __func__, err); perror(__buf__); } while(0);
+// TODO: can't exit because threads!
+#define cb_eperror(err) do { cb_perror(err); exit(err); } while(0);
 
 #define CB_MAX_REMOTE_CONN 1
 #define CB_MAX_LOCAL_CONN 1
@@ -27,7 +35,7 @@ struct thread_args {
 };
 
 // Global array of regions
-extern struct region local_regions[CB_NUM_REGIONS];
+extern struct region app_regions[CB_NUM_REGIONS];
 
 // Global array of remote connections
 extern struct conn *child_conn;

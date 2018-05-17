@@ -18,7 +18,7 @@ int listen_child(void)
 
 	int child_socket;
 	child_socket = socket(AF_INET, SOCK_STREAM, 0);
-	if (child_socket == -1) emperror(errno);
+	if (child_socket == -1) cb_eperror(errno);
 
 	struct sockaddr_in local_addr;
 	//local_addr.sin_family = AF_INET;
@@ -27,12 +27,12 @@ int listen_child(void)
 	socklen_t local_addrlen = sizeof(struct sockaddr_in);
 
 	//r = bind(child_socket, (struct sockaddr *) &local_addr, local_addrlen);
-	//if (r == -1) emperror(errno);
+	//if (r == -1) cb_eperror(errno);
 	r = listen(child_socket, SOMAXCONN);
-	if (r == -1) emperror(errno);
+	if (r == -1) cb_eperror(errno);
 
 	r = getsockname(child_socket, (struct sockaddr *) &local_addr, &local_addrlen);
-	if (r == -1) emperror(errno);
+	if (r == -1) cb_eperror(errno);
 	printf("Listening for child clipboards on %s:%d\n", inet_ntoa(local_addr.sin_addr), ntohs(local_addr.sin_port));
 
 	return child_socket;
@@ -46,11 +46,11 @@ void *child_accept(void *arg)
 
 	pthread_t t;
 	while (1) {
-		int c = accept(child_socket, NULL, 0);
-		if (c == -1) { mperror(errno); continue; }
+		int c = accept( child_socket, NULL, 0);
+		if (c == -1) {cb_eperror(errno); continue; }
 
 		r = pthread_create(&t, NULL, serve_child, &c);
-		if (r != 0) { mperror(r); close (c); continue; }
+		if (r != 0) { cb_eperror(r); close (c); continue; }
 	}
 
 	close(child_socket);

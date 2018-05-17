@@ -1,8 +1,10 @@
 CC=clang
 #CCX=
-CFLAGS=-Wall -Wextra -pedantic -std=c11 -pthread -Wunused-result
-CFLAGS+=-O3
-#CFLAGS+=-g -Og
+CFLAGS=-std=c11 -pthread
+CFLAGS=-Wall -Wextra -Wpedantic -Wunused-result -Wunreachable-code
+#CFLAGS=-Weverything
+#CFLAGS+=-O3
+CFLAGS+=-g -Og
 #CFLAGS+=-pg
 CFLAGS+=-fdiagnostics-color=always
 #CXXFLAGS=$(CFLAGS)
