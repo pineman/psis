@@ -44,7 +44,7 @@ int clipboard_connect(char *clipboard_dir)
 	strcpy(clipboard_addr.sun_path, path_buf);
 	socklen_t clipboard_addrlen = sizeof(clipboard_addr);
 
-	// Try to set a sending timeout and ignore SIGPIPE.
+	// Try to set a send/recv timeout and ignore SIGPIPE.
 	r = cb_setsockopt(clipboard_fd);
 	if (r == -1) return -1;
 
@@ -52,7 +52,6 @@ int clipboard_connect(char *clipboard_dir)
 	r = connect(clipboard_fd, (struct sockaddr *) &clipboard_addr, clipboard_addrlen);
 	// Error connecting, errno is set
 	if (r == -1) return -1;
-
 
 	// Return the fd of the socket to local clipboard server
 	return clipboard_fd;
@@ -133,6 +132,8 @@ int clipboard_paste(int clipboard_id, int region, void *buf, size_t count)
 	uint32_t resp_data_size;
 	r = cb_recv_msg(clipboard_id, &resp_cmd, &resp_region, &resp_data_size);
 	if (r == -1 || r == 0) return 0; // Receiving failed
+	// Fatal error: server sent invalid message.
+	assert(r != -2);
 
 	// Fatal error: server did not reply correctly
 	assert(resp_region == region);
@@ -140,6 +141,7 @@ int clipboard_paste(int clipboard_id, int region, void *buf, size_t count)
 
 	// TODO: should the server send everything or just `count` bytes?
 	char *resp_data = malloc(resp_data_size);
+	if (resp_data == NULL) exit(1); // TODO
 	// Get clipboard data
 	r = cb_recv(clipboard_id, (void *) resp_data, resp_data_size);
 	if (r == -1 || r == 0) return 0; // Receiving failed

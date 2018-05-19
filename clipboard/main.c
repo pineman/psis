@@ -10,116 +10,124 @@
 #include "cb_msg.h"
 
 #include "clipboard.h"
+#include "utils.h"
 #include "app.h"
 #include "child.h"
 #include "parent.h"
 
-/* Globals */
-// Global array of regions
-struct region app_regions[CB_NUM_REGIONS];
+void init_globals(void)
+{
+	int r;
 
-// Global array of child connections // TODO: linked list
-struct conn *child_conn;
-// Global array of app connections // TODO: linked list
-struct conn *app_conn;
+	child_conn_list = calloc(1, sizeof(struct conn));
+	if (child_conn_list == NULL) cb_eperror(errno);
 
-struct conn *parent_conn;
+	app_conn_list = calloc(1, sizeof(struct conn));
+	if (app_conn_list == NULL) cb_eperror(errno);
 
-// Are we in connected mode or are we the master (i.e. we have no parent)
-bool master = true;
-pthread_mutex_t mode_lock; // protects `master` boolean
+	parent_conn = calloc(1, sizeof(struct conn));
+	if (parent_conn == NULL) cb_eperror(errno);
+
+	root = true;
+	r = pthread_rwlock_init(&mode_rwlock, NULL);
+	if (r != 0) cb_eperror(r);
+}
+
+void free_globals(void)
+{
+	free(child_conn_list);
+	free(app_conn_list);
+	free(parent_conn);
+
+	pthread_rwlock_destroy(&mode_rwlock);
+}
+
+void create_threads(char *argv[], pthread_t *parent_serve_tid, pthread_t *app_accept_tid, pthread_t *child_accept_tid)
+{
+	int r;
+
+	// Create thread for parent connection (if needed)
+	if (!root) {
+		r = pthread_create(parent_serve_tid, NULL, serve_parent, argv);
+		if (r != 0) cb_eperror(r);
+	}
+	// Create listening threads
+	r = pthread_create(app_accept_tid, NULL, app_accept, NULL);
+	if (r != 0) cb_eperror(r);
+	r = pthread_create(child_accept_tid, NULL, child_accept, NULL);
+	if (r != 0) cb_eperror(r);
+}
+
+void main_cleanup(pthread_t parent_serve_tid, pthread_t app_accept_tid, pthread_t child_accept_tid)
+{
+	int r;
+
+	// Cancel threads
+	if (!root) {
+		r = pthread_cancel(parent_serve_tid);
+		if (r != 0) cb_eperror(r);
+	}
+	r = pthread_cancel(app_accept_tid);
+	if (r != 0) cb_eperror(r);
+	r = pthread_cancel(child_accept_tid);
+	if (r != 0) cb_eperror(r);
+
+	// And join them
+	void *ret;
+	if (!root) {
+		r = pthread_join(parent_serve_tid, &ret);
+		if (r != 0) cb_eperror(r);
+	}
+	r = pthread_join(app_accept_tid, &ret);
+	if (r != 0) cb_eperror(r);
+	//assert(ret == PTHREAD_CANCELED);
+	r = pthread_join(child_accept_tid, &ret);
+	if (r != 0) cb_eperror(r);
+	//assert(ret == PTHREAD_CANCELED);
+
+	free_globals();
+}
 
 int main(int argc, char *argv[])
 {
 	/* In order to launch the clipboard in connected mode it is necessary for
-	 * the user to use the command  line  argument  -c followed  by  the
-	 * address  and  port  of  another  clipboard. */
+	 * the user to use the command line argument -c followed by the
+	 * address and port of another clipboard. */
 	if (argc > 1) {
 		if (argc != 4) {
-			puts("-c <address> <port>");
+			printf("Usage: %s -c <address> <port>\n", argv[0]);
 			exit(EXIT_FAILURE);
 		}
 
-		master = false;
+		root = false;
 	}
 
 	int r;
-	pthread_t app_accept_thread, child_accept_thread, parent_serve_thread;
 
-	// Block all signals. All threads will inherit the signal mask,
-	// and hence will also block all signals.
-	sigset_t oldsig, allsig;
-	r = sigfillset(&allsig);
-	if (r != 0) cb_eperror(errno);
-	r = pthread_sigmask(SIG_SETMASK, &allsig, &oldsig);
-	if (r != 0) cb_eperror(r);
+	// Initialize globals declared in clipboard.h
+	init_globals();
 
-	pthread_mutexattr_t mutex_attr;
-	r = pthread_mutexattr_init(&mutex_attr);
-	if (r != 0) cb_eperror(r);
-	r = pthread_mutexattr_settype(&mutex_attr, PTHREAD_MUTEX_ERRORCHECK);
-	if (r != 0) cb_eperror(r);
-	r = pthread_mutexattr_setrobust(&mutex_attr, PTHREAD_MUTEX_ROBUST);
-	if (r != 0) cb_eperror(r);
-	r = pthread_mutex_init(&mode_lock, &mutex_attr);
-	if (r != 0) cb_eperror(r);
+	// Block most signals. All threads will inherit the signal mask,
+	// and hence will also block most signals.
+	sigset_t sigset;
+	block_signals(&sigset);
 
-	pthread_attr_t attr;
-	r = pthread_attr_init(&attr);
-	if (r != 0) cb_eperror(r);
-	//pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
-
-	// Thread for parent connection
-	if (!master) {
-		r = pthread_create(&parent_serve_thread, &attr, serve_parent, argv);
-		if (r != 0) cb_eperror(r);
-	}
-	// Create listening threads
-	r = pthread_create(&app_accept_thread, &attr, app_accept, NULL);
-	if (r != 0) cb_eperror(r);
-	r = pthread_create(&child_accept_thread, &attr, child_accept, NULL);
-	if (r != 0) cb_eperror(r);
+	// Create parent, app & child listening threads
+	pthread_t parent_serve_tid, app_accept_tid, child_accept_tid;
+	create_threads(argv, &parent_serve_tid, &app_accept_tid, &child_accept_tid);
 
 	// Handle signals via sigwait() on main thread
 	while (1) {
 		int sig;
 
-		r = sigwait(&allsig, &sig);
+		r = sigwait(&sigset, &sig);
 		if (r != 0) cb_eperror(r);
 
-		printf("clipboard: got signal %d\n", sig);
+		printf("%s: got signal %d\n", argv[0], sig);
 
-		if (sig == SIGINT) {
+		if (sig == SIGINT || sig == SIGTERM) {
 			puts("Exiting...");
-			// TODO: maybe cleanup function
-			r = pthread_cancel(app_accept_thread);
-			if (r != 0) cb_eperror(r);
-			r = pthread_cancel(child_accept_thread);
-			if (r != 0) cb_eperror(r);
-
-			if (!master) {
-				r = pthread_cancel(parent_serve_thread);
-				if (r != 0) cb_eperror(r);
-			}
-
-			void *ret;
-			r = pthread_join(app_accept_thread, &ret);
-			if (r != 0) cb_eperror(r);
-			assert(ret == PTHREAD_CANCELED);
-
-			r = pthread_join(child_accept_thread, &ret);
-			if (r != 0) cb_eperror(r);
-			assert(ret == PTHREAD_CANCELED);
-
-			if (!master) {
-				r = pthread_join(parent_serve_thread, &ret);
-				if (r != 0) cb_eperror(r);
-				assert(ret == PTHREAD_CANCELED);
-			}
-
-			r = pthread_mutex_destroy(&mode_lock);
-			if (r != 0) cb_eperror(r);
-
+			main_cleanup(parent_serve_tid, app_accept_tid, child_accept_tid);
 			pthread_exit(NULL);
 		}
 	}

@@ -11,7 +11,7 @@
 #include "cb_msg.h"
 
 // Set socket options, if available
-// Set a sending timeout and ignore SIGPIPE.
+// Set a send/recv timeout and ignore SIGPIPE.
 // return value is:
 //	-1 on error and errno is set
 //	0 on success
@@ -27,6 +27,13 @@ int cb_setsockopt(int sockfd)
 	t.tv_sec = SEND_TIMEOUT;
 	t.tv_usec = 0;
 	r = setsockopt(sockfd, SOL_SOCKET, SO_SNDTIMEO, &t, sizeof(t));
+	if (r == -1) return -1;
+#endif
+
+#ifdef SO_RCVTIMEO
+	// Set a receiving timeout, just in case the clipboard server does not
+	// respond in a timely fashion.
+	r = setsockopt(sockfd, SOL_SOCKET, SO_RCVTIMEO, &t, sizeof(t));
 	if (r == -1) return -1;
 #endif
 
@@ -170,6 +177,7 @@ ssize_t cb_recv_msg(int clipboard_id, uint8_t *cmd, uint8_t *region, uint32_t *d
 	r = cb_recv(clipboard_id, (void *) msg, CB_MSG_SIZE);
 	// Return -1 early on error or 0 on EOF
 	if (r == -1 || r == 0) return r;
+
 	// Return -2 early if message is invalid
 	if (!valid_msg(msg[0], msg[1])) return -2;
 

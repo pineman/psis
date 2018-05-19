@@ -47,7 +47,7 @@ void *child_accept(void *arg)
 	pthread_t t;
 	while (1) {
 		int c = accept( child_socket, NULL, 0);
-		if (c == -1) {cb_eperror(errno); continue; }
+		if (c == -1) { cb_eperror(errno); continue; }
 
 		r = pthread_create(&t, NULL, serve_child, &c);
 		if (r != 0) { cb_eperror(r); close (c); continue; }
@@ -67,12 +67,12 @@ void *serve_child(void *arg)
 	sleep(100);
 
 	/*
-	if (connected_mode) {
+	if (!root) {
 		// Send to the parent
 		write(parent, buf);
 	}
 	else {
-		// im the master, do global update (serialize and send to childs)
+		// im the root, do global update (serialize and send to childs)
 		lock(regions[region]);
 		reigons[region].buf = buf
 		unlock(regions[region]);

@@ -40,12 +40,16 @@ $(OBJDIR)/%.d: %.c
 $(OBJDIR)/%.o: %.c
 	$(CC) -c -o $@ $(CPPFLAGS) $(CFLAGS) $<
 
-.PHONY=clean all
+.PHONY=all clean remake
 .DEFAULT_GOAL=all
 all: $(EXECS)
 
 clean:
 	rm -rf $(OBJDIR) $(EXECS)
+
+remake:
+	$(MAKE) clean
+	$(MAKE)
 
 # This rebuilds everything if the Makefile was modified
 # http://stackoverflow.com/questions/3871444/making-all-rules-depend-on-the-makefile-itself/3892826#3892826

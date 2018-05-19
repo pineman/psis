@@ -1,12 +1,5 @@
-#include <stdlib.h>
 #include <stdio.h>
-#include <locale.h>
 #include <errno.h>
-#include <limits.h>
-#include <stdint.h>
-#include <string.h>
-#include <time.h>
-#include <stddef.h>
 
 #define mperror(err) do { char __buf__[1024]; sprintf(__buf__, "%s:%d %s(), errno = %d", __FILE__, __LINE__-1, __func__, err); perror(__buf__); } while(0);
 #define emperror(err) do { mperror(err); exit(err); } while(0);
@@ -35,6 +28,10 @@ int main(int argc, char *argv[])
 		printf("%d: %c\n", i, buf2[i]);
 	}
 	puts("");
+
+	sleep(100);
+
+	clipboard_close(cb);
 
 	return EXIT_SUCCESS;
 }

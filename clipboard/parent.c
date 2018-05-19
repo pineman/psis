@@ -58,17 +58,17 @@ int connect_parent(char *addr, char *port)
 void cleanup_serve_parent(void *arg)
 {
 	int r;
+	int *parent = (int *) arg;
 
 	puts("cancelling parent thread");
 
-	int *parent = (int *) arg;
-	close(*parent);
 
-	r = pthread_mutex_lock(&mode_lock);
+	r = pthread_rwlock_wrlock(&mode_rwlock);
 	if (r != 0) cb_eperror(r);
-	// TODO: Now im the master!!
-	master = true;
-	r = pthread_mutex_unlock(&mode_lock);
+	// TODO: Now im the root!!
+	close(*parent);
+	root = true;
+	r = pthread_rwlock_unlock(&mode_rwlock);
 	if (r != 0) cb_eperror(r);
 }
 
@@ -82,16 +82,20 @@ void *serve_parent(void *arg)
 	pthread_cleanup_push(cleanup_serve_parent, &parent);
 
 	/*
+	buf = malloc(100)
 	recv(buf)
 	// Got update from parent, write to my regions and send downwards to remotes
 	// TODO: same as global update in local and remote?
 	lock(regions[region]);
+	free(regions[region]);
 	reigons[region].buf = buf
 	unlock(regions[region]);
 
 	lock(global_update)
 	for (remote in remotes) remote.send(buf)
 	unlock(global_update)
+
+	// TODO: no need to free buf because it always ends up in regions. so just free regions
 	*/
 
 	sleep(100);
