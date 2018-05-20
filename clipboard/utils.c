@@ -36,14 +36,11 @@ int init_mutex(pthread_mutex_t *mutex)
 	r = pthread_mutexattr_init(&mutex_attr);
 	if (r != 0) return r;
 
-#ifdef PTHREAD_MUTEX_ERRORCHECK
 	r = pthread_mutexattr_settype(&mutex_attr, PTHREAD_MUTEX_ERRORCHECK);
 	if (r != 0) return r;
-#endif
-#ifdef PTHREAD_MUTEX_ROBUST
+
 	r = pthread_mutexattr_setrobust(&mutex_attr, PTHREAD_MUTEX_ROBUST);
 	if (r != 0) return r;
-#endif
 
 	r = pthread_mutex_init(mutex, &mutex_attr);
 	if (r != 0) return r;

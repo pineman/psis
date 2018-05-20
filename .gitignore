@@ -1,4 +1,6 @@
 .obj
 apps/test
+apps/copy
+apps/paste
 clipboard/clipboard
 .dummy

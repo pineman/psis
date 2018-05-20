@@ -64,7 +64,7 @@ void *app_accept(void *arg) // TODO: abstract away into generic function?
 		r = pthread_create(&conn->tid, NULL, serve_app, conn);
 		if (r != 0) goto cont_conn;
 
-		r = conn_append(app_conn_list, conn);
+		r = conn_append(app_conn_list, conn, &app_conn_list_rwlock);
 		if (r != 0) cb_eperror(r);
 		continue;
 
@@ -211,7 +211,6 @@ void *serve_app(void *arg)
 					if (r != 0) cb_eperror(r);
 					child_conn = child_conn->next;
 				}
-
 				// End Critical section: Unlock child_conn_list
 				r = pthread_rwlock_unlock(&child_conn_list_rwlock);
 				if (r != 0) cb_eperror(r);
@@ -284,16 +283,10 @@ void *serve_app(void *arg)
 void cleanup_serve_app(void *arg)
 {
 	int r;
-
 	struct clean *clean = (struct clean *) arg;
 	if (*clean->data != NULL) free(*clean->data);
 
-	// TODO: lock app_conn_list
-	r = pthread_rwlock_wrlock(&app_conn_list_rwlock);
-	if (r != 0) cb_eperror(r);
-	r = conn_remove(clean->conn);
-	if (r != 0) cb_eperror(r);
-	r = pthread_rwlock_unlock(&app_conn_list_rwlock);
+	r = conn_remove(clean->conn, &app_conn_list_rwlock);
 	if (r != 0) cb_eperror(r);
 
 	conn_destroy(clean->conn);

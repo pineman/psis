@@ -19,6 +19,7 @@ void init_globals(void)
 {
 	int r;
 
+	// Initialize conn_list dummy heads
 	child_conn_list = calloc(1, sizeof(struct conn));
 	if (child_conn_list == NULL) cb_eperror(errno);
 	r = pthread_rwlock_init(&child_conn_list_rwlock, NULL);
@@ -29,13 +30,11 @@ void init_globals(void)
 	r = pthread_rwlock_init(&app_conn_list_rwlock, NULL);
 	if (r != 0) cb_eperror(r);
 
-	parent_conn = calloc(1, sizeof(struct conn));
-	if (parent_conn == NULL) cb_eperror(errno);
-
 	root = true;
 	r = pthread_rwlock_init(&mode_rwlock, NULL);
 	if (r != 0) cb_eperror(r);
 
+	// Initialize regions
 	for (int i = 0; i < CB_NUM_REGIONS; i++) {
 		regions[i].data = NULL;
 		regions[i].data_size = 0;
@@ -48,7 +47,6 @@ void free_globals(void)
 {
 	free(child_conn_list);
 	free(app_conn_list);
-	free(parent_conn);
 
 	pthread_rwlock_destroy(&child_conn_list_rwlock);
 	pthread_rwlock_destroy(&app_conn_list_rwlock);
@@ -94,6 +92,7 @@ void main_cleanup(pthread_t parent_serve_tid, pthread_t app_accept_tid, pthread_
 	if (!root) {
 		r = pthread_join(parent_serve_tid, &ret);
 		if (r != 0) cb_eperror(r);
+		assert(ret == PTHREAD_CANCELED);
 	}
 	r = pthread_join(app_accept_tid, &ret);
 	if (r != 0) cb_eperror(r);

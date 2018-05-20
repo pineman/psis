@@ -11,7 +11,7 @@ struct conn {
 
 int conn_new(struct conn **conn, int sockfd);
 void conn_destroy(struct conn *conn);
-int conn_append(struct conn *head, struct conn *conn);
-int conn_remove(struct conn *rm);
+int conn_append(struct conn *head, struct conn *conn, pthread_rwlock_t *rwlock);
+int conn_remove(struct conn *rm, pthread_rwlock_t *rwlock);
 
 void conn_print(struct conn *head);
