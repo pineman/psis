@@ -15,6 +15,7 @@ enum cb_cmd {
 	CB_CMD_COPY,
 	CB_CMD_REQ_PASTE,
 	CB_CMD_PASTE,
+	CB_CMD_WAIT,
 	CB_NUM_CMDS // Number of commands, keep at the end
 };
 

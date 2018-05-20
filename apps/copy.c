@@ -1,5 +1,8 @@
 #include <stdio.h>
+#include <string.h>
 #include <errno.h>
+
+#include <unistd.h>
 
 #define mperror(err) do { char __buf__[1024]; sprintf(__buf__, "%s:%d %s(), errno = %d", __FILE__, __LINE__-1, __func__, err); perror(__buf__); } while(0);
 #define emperror(err) do { mperror(err); exit(err); } while(0);
@@ -15,21 +18,17 @@ int main(int argc, char *argv[])
 	int cb = clipboard_connect(argv[1]);
 	if (cb == -1) emperror(errno);
 
-	char buf1[] = "Heilo";
-	r = clipboard_copy(cb, 8, buf1, sizeof(buf1));
-	if (r == 0) emperror(errno);
-	printf("copy returned %d, sizeof(buf1) = %lu\n", r, sizeof(buf1));
-
-	char buf2[3];
-	r = clipboard_paste(cb, 8, (void *) buf2, sizeof(buf2));
-	if (r == 0) emperror(errno);
-	printf("paste returned %d: %s, sizeof(buf2) = %lu\n", r, buf2, sizeof(buf2));
-	for (int i = 0; i < 3; i++ ) {
-		printf("%d: %c\n", i, buf2[i]);
+	char buf[100];
+	int j = 0;
+	while (1) {
+		for (int i = 0; i < 1; i++ ) {
+			sprintf(buf, "I make the copy %d", j++);
+			r = clipboard_copy(cb, i, buf, strlen(buf) + 1);
+			if (r == 0) { mperror(errno); break; }
+			printf("%d \"%s\" \n", i, buf);
+		}
+		if (r == 0) break;
 	}
-	puts("");
-
-	sleep(100);
 
 	clipboard_close(cb);
 

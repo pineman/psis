@@ -21,9 +21,13 @@ void init_globals(void)
 
 	child_conn_list = calloc(1, sizeof(struct conn));
 	if (child_conn_list == NULL) cb_eperror(errno);
+	r = pthread_rwlock_init(&child_conn_list_rwlock, NULL);
+	if (r != 0) cb_eperror(r);
 
 	app_conn_list = calloc(1, sizeof(struct conn));
 	if (app_conn_list == NULL) cb_eperror(errno);
+	r = pthread_rwlock_init(&app_conn_list_rwlock, NULL);
+	if (r != 0) cb_eperror(r);
 
 	parent_conn = calloc(1, sizeof(struct conn));
 	if (parent_conn == NULL) cb_eperror(errno);
@@ -31,6 +35,13 @@ void init_globals(void)
 	root = true;
 	r = pthread_rwlock_init(&mode_rwlock, NULL);
 	if (r != 0) cb_eperror(r);
+
+	for (int i = 0; i < CB_NUM_REGIONS; i++) {
+		regions[i].data = NULL;
+		regions[i].data_size = 0;
+		r = pthread_rwlock_init(&regions[i].rwlock, NULL);
+		if (r != 0) cb_eperror(r);
+	}
 }
 
 void free_globals(void)
@@ -39,7 +50,14 @@ void free_globals(void)
 	free(app_conn_list);
 	free(parent_conn);
 
+	pthread_rwlock_destroy(&child_conn_list_rwlock);
+	pthread_rwlock_destroy(&app_conn_list_rwlock);
 	pthread_rwlock_destroy(&mode_rwlock);
+
+	for (int i = 0; i < CB_NUM_REGIONS; i++) {
+		free(regions[i].data);
+		pthread_rwlock_destroy(&regions[i].rwlock);
+	}
 }
 
 void create_threads(char *argv[], pthread_t *parent_serve_tid, pthread_t *app_accept_tid, pthread_t *child_accept_tid)
@@ -62,7 +80,7 @@ void main_cleanup(pthread_t parent_serve_tid, pthread_t app_accept_tid, pthread_
 {
 	int r;
 
-	// Cancel threads
+	// Cancel and join threads
 	if (!root) {
 		r = pthread_cancel(parent_serve_tid);
 		if (r != 0) cb_eperror(r);
@@ -72,18 +90,17 @@ void main_cleanup(pthread_t parent_serve_tid, pthread_t app_accept_tid, pthread_
 	r = pthread_cancel(child_accept_tid);
 	if (r != 0) cb_eperror(r);
 
-	// And join them
-	void *ret;
+	void *ret; // TODO: remove assert and ret
 	if (!root) {
 		r = pthread_join(parent_serve_tid, &ret);
 		if (r != 0) cb_eperror(r);
 	}
 	r = pthread_join(app_accept_tid, &ret);
 	if (r != 0) cb_eperror(r);
-	//assert(ret == PTHREAD_CANCELED);
+	assert(ret == PTHREAD_CANCELED);
 	r = pthread_join(child_accept_tid, &ret);
 	if (r != 0) cb_eperror(r);
-	//assert(ret == PTHREAD_CANCELED);
+	assert(ret == PTHREAD_CANCELED);
 
 	free_globals();
 }
@@ -104,13 +121,14 @@ int main(int argc, char *argv[])
 
 	int r;
 
-	// Initialize globals declared in clipboard.h
-	init_globals();
-
 	// Block most signals. All threads will inherit the signal mask,
 	// and hence will also block most signals.
 	sigset_t sigset;
-	block_signals(&sigset);
+	r = block_signals(&sigset);
+	if (r == -1) cb_eperror(r);
+
+	// Initialize globals declared in clipboard.h
+	init_globals();
 
 	// Create parent, app & child listening threads
 	pthread_t parent_serve_tid, app_accept_tid, child_accept_tid;
@@ -121,9 +139,9 @@ int main(int argc, char *argv[])
 		int sig;
 
 		r = sigwait(&sigset, &sig);
-		if (r != 0) cb_eperror(r);
+		if (r != 0) { cb_perror(r); sig = SIGTERM; }
 
-		printf("%s: got signal %d\n", argv[0], sig);
+		cb_log("%s: got signal %d\n", argv[0], sig);
 
 		if (sig == SIGINT || sig == SIGTERM) {
 			puts("Exiting...");

@@ -126,7 +126,7 @@ static bool valid_msg(uint8_t cmd, uint8_t region)
 	return true;
 }
 
-// TODO: send_msg and recv_msg can receive a mutex argument protecting
+// TODO: send_msg and recv_msg could receive a mutex argument protecting
 // `clipboard_id`
 
 // Send message to a clipboard server

@@ -1,24 +1,24 @@
 CC=clang
 #CCX=
 CFLAGS=-std=c11 -pthread
-CFLAGS=-Wall -Wextra -Wpedantic -Wunused-result -Wunreachable-code
+CFLAGS+=-Wall -Wextra -Wpedantic -Wunused-result -Wunreachable-code
 #CFLAGS=-Weverything
 #CFLAGS+=-O3
 CFLAGS+=-g -Og
 #CFLAGS+=-pg
-CFLAGS+=-fdiagnostics-color=always
+CFLAGS+=-fdiagnostics-color=always -march=native
 #CXXFLAGS=$(CFLAGS)
 CPPFLAGS=-I cb_common -I library -D_POSIX_C_SOURCE="200809L"
 LDFLAGS=-pthread
 LDLIBS=
 SRCDIR=.
-SRC!=find $(SRCDIR) -type f -name "*.c" | cut -d"/" -f2-
+SRC=$(shell find $(SRCDIR) -type f -name "*.c" | cut -d"/" -f2-)
 
 # Define executables and their link dependencies here
-EXECS = clipboard/clipboard apps/test
-clipboard/clipboard_DEPS!=find cb_common clipboard -type f -name "*.c"
-apps/test_DEPS!=find cb_common library -type f -name "*.c"
-apps/test_DEPS+=apps/test.c
+EXECS = clipboard/clipboard apps/copy apps/paste
+clipboard/clipboard_DEPS=$(shell find cb_common clipboard -type f -name "*.c")
+apps/copy_DEPS=$(shell find cb_common library -type f -name "*.c") apps/copy.c
+apps/paste_DEPS=$(shell find cb_common library -type f -name "*.c") apps/paste.c
 
 ###############################################################################
 # No more user editing is needed below

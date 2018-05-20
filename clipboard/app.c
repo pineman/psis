@@ -44,28 +44,6 @@ int listen_local(void)
 	return local_socket;
 }
 
-void cleanup_app_accept(void *arg)
-{
-	cb_log("%s", "cleaning up app_accept\n");
-	int r;
-	int *local_socket = (int *) arg;
-	struct conn *conn;
-	pthread_t t;
-
-	conn = app_conn_list->next;
-	while (conn != NULL) {
-		t = conn->tid;
-		conn = conn->next;
-		r = pthread_cancel(t);
-		if (r != 0) cb_eperror(r);
-		r = pthread_join(t, NULL);
-		if (r != 0) cb_eperror(r);
-	}
-
-	close(*local_socket);
-	unlink(CB_SOCKET);
-}
-
 void *app_accept(void *arg) // TODO: abstract away into generic function?
 // Args could be listen function, client handle function and array to put connections in to pass to clean_up
 {
@@ -75,8 +53,6 @@ void *app_accept(void *arg) // TODO: abstract away into generic function?
 
 	pthread_cleanup_push(cleanup_app_accept, &app_socket);
 
-	// Don't exit() on errors inside the accept loop. If one connection fails,
-	// just continue accept()
 	while (1) {
 		int app = accept(app_socket, NULL, 0);
 		if (app == -1) goto cont;
@@ -88,7 +64,8 @@ void *app_accept(void *arg) // TODO: abstract away into generic function?
 		r = pthread_create(&conn->tid, NULL, serve_app, conn);
 		if (r != 0) goto cont_conn;
 
-		conn_append(app_conn_list, conn);
+		r = conn_append(app_conn_list, conn);
+		if (r != 0) cb_eperror(r);
 		continue;
 
 	cont_conn:
@@ -100,16 +77,32 @@ void *app_accept(void *arg) // TODO: abstract away into generic function?
 	pthread_cleanup_pop(1);
 }
 
-void cleanup_serve_app(void *arg)
+void cleanup_app_accept(void *arg)
 {
-	puts("cleaning serve app");
-	struct clean *clean = (struct clean *) arg;
-	if (*clean->data != NULL) free(*clean->data);
-	conn_remove(clean->conn);
-	conn_destroy(clean->conn);
+	int r;
+	int *local_socket = (int *) arg;
+	struct conn *conn;
+	pthread_t t;
+
+	cb_log("%s", "cleaning up app_accept\n");
+
+	// Transverse app connections list and cancel threads
+	conn = app_conn_list->next;
+	while (conn != NULL) {
+		t = conn->tid;
+		conn = conn->next;
+		r = pthread_cancel(t);
+		if (r != 0) cb_eperror(r);
+		r = pthread_join(t, NULL);
+		if (r != 0) cb_eperror(r);
+	}
+
+	// Close and unlink local socket
+	close(*local_socket);
+	unlink(CB_SOCKET);
 }
 
-// Don't exit on errors
+// Serve one app connection
 void *serve_app(void *arg)
 {
 	int r;
@@ -119,7 +112,6 @@ void *serve_app(void *arg)
 	uint8_t region = 0;
 	uint32_t data_size = 0;
 	char *data = NULL;
-	uint32_t tmp = 0;
 
 	struct clean clean = {.data = &data, .conn = conn};
 	pthread_cleanup_push(cleanup_serve_app, &clean);
@@ -127,47 +119,154 @@ void *serve_app(void *arg)
 	while (1)
 	{
 		r = cb_recv_msg(conn->sockfd, &cmd, &region, &data_size);
-		if (r == 0) break; // TODO: client went bye bye
-		cb_log("[GOT] serve_app: cmd = %d, region = %d, data_size = %d\n", cmd, region, data_size);
+		if (r == 0) { cb_log("%s", "app disconnect\n"); break; }
+		if (r == -1) { cb_log("recv_msg failed r = %d, errno = %d\n", r, errno); break; } // TODO
+		if (r == -2) { cb_log("recv_msg invalid message r = %d, errno = %d\n", r, errno); break; } // TODO
+		cb_log("[GOT] cmd = %d, region = %d, data_size = %d\n", cmd, region, data_size);
 
 		if (cmd == CB_CMD_COPY) {
 			cb_log("%s", "[GOT] cmd copy\n");
-			// TODO: assert must be pthread_cancel or something
-			assert(data_size != 0);
+			if (data_size == 0) { cb_log("%s", "got data_size == 0\n"); break; } // TODO
 
 			data = malloc(data_size);
-			if (data == NULL) cb_perror(errno);
+			if (data == NULL) {
+				cb_perror(errno); // TODO inform the client we have no space
+				continue;
+			}
+
 			r = cb_recv(conn->sockfd, data, data_size);
-			cb_log("[GOT] data = %s, r = %d, errno = %d\n", data, r, errno);
-			if (r == 0) break; // TODO: client went bye bye
-			tmp = data_size;
+			if (r == 0) { cb_log("app disconnect, r = %d, errno = %d\n", r, errno); break; }
+			cb_log("[GOT] data = %s\n", data);
 
 			if (!root) {
 				// Send to parent conn
+				free(data);
+				data = NULL; // mark that `data` has been free()d
 			}
 			else {
-				// im the root, do global update (serialize and send to childs)
-				// global update means no one else can write to childs TODO: does that even happen?
-				/*
-				lock(regions[region]);
-				reigons[region].buf = buf
-				unlock(regions[region]);
+				// Critical section: updating a region (write lock regions[region])
+				r = pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, NULL);
+				if (r != 0) cb_eperror(r);
+				r = pthread_rwlock_wrlock(&regions[region].rwlock);
+				if (r != 0) cb_eperror(r);
 
-				lock(global_update)
-				for (child in child_conn) child.send(buf)
-				unlock(global_update)
-				*/
+				free(regions[region].data);
+				regions[region].data = data;
+				data = NULL; // mark that `data` will be free()d when regions are
+				regions[region].data_size = data_size;
+
+				// End Critical section: unlock region
+				r = pthread_rwlock_unlock(&regions[region].rwlock);
+				if (r != 0) cb_eperror(r);
+				r = pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
+				if (r != 0) cb_eperror(r);
+
+				// Critical section: sending copy to all children (read lock child_conn_list)
+				r = pthread_rwlock_rdlock(&child_conn_list_rwlock);
+				if (r != 0) cb_eperror(r);
+				// Send to all children
+				struct conn *child_conn = child_conn_list->next;
+				while (child_conn != NULL) {
+					// Critical region: writing to a child socket
+					r = pthread_mutex_lock(&child_conn->mutex);
+					if (r != 0) cb_eperror(r);
+
+					r = cb_send_msg(child_conn->sockfd, CB_CMD_COPY, region, data_size);
+					if (r == -1) {
+						cb_log("send_msg failed r = %d, errno = %d\n", r, errno);
+						r = pthread_rwlock_unlock(&child_conn_list_rwlock);
+						if (r != 0) cb_eperror(r);
+						r = pthread_cancel(child_conn->tid); // Will remove and destroy the connection
+						if (r != 0) cb_eperror(r);
+						r = pthread_rwlock_rdlock(&child_conn_list_rwlock);
+						if (r != 0) cb_eperror(r);
+						continue;
+					} // TODO
+					if (r == -2) {
+						cb_log("send_msg invalid message r = %d, errno = %d\n", r, errno);
+						r = pthread_rwlock_unlock(&child_conn_list_rwlock);
+						if (r != 0) cb_eperror(r);
+						r = pthread_cancel(child_conn->tid); // Will remove and destroy the connection
+						if (r != 0) cb_eperror(r);
+						r = pthread_rwlock_rdlock(&child_conn_list_rwlock);
+						if (r != 0) cb_eperror(r);
+						continue;
+					} // TODO
+					cb_log("[SEND] cmd = %d, region = %d, data_size = %d\n", CB_CMD_COPY, region, data_size);
+
+					r = cb_send(child_conn->sockfd, data, data_size);
+					if (r == -1) {
+						cb_log("send data failed r = %d, errno = %d\n", r, errno);
+						r = pthread_rwlock_unlock(&child_conn_list_rwlock);
+						if (r != 0) cb_eperror(r);
+						r = pthread_cancel(child_conn->tid); // Will remove and destroy the connection
+						if (r != 0) cb_eperror(r);
+						r = pthread_rwlock_rdlock(&child_conn_list_rwlock);
+						if (r != 0) cb_eperror(r);
+					} // TODO
+					cb_log("[SEND] data = %s\n", data);
+
+					// End Critical section: Unlock the child
+					r = pthread_mutex_unlock(&child_conn->mutex);
+					if (r != 0) cb_eperror(r);
+					child_conn = child_conn->next;
+				}
+
+				// End Critical section: Unlock child_conn_list
+				r = pthread_rwlock_unlock(&child_conn_list_rwlock);
+				if (r != 0) cb_eperror(r);
 			}
-			//free(data); // TODO: uncomment
-			//data = NULL;
 		}
 		else if (cmd == CB_CMD_REQ_PASTE) {
-			assert(data_size == 0);
 			cb_log("%s", "[GOT] cmd req_paste\n");
-			r = cb_send_msg(conn->sockfd, CB_CMD_PASTE, region, tmp);
-			cb_log("[SEND] serve_app: cmd = %d, region = %d, data_size = %d, data = %s\n", CB_CMD_PASTE, region, tmp, data);
-			r = cb_send(conn->sockfd, data, tmp);
-			cb_log("[SEND] data = %s, r = %d, errno = %d\n", data, r, errno);
+			if (data_size != 0) { cb_log("%s", "got data_size != 0\n"); break; } // TODO
+
+			// Critical section: reading from regions[region]
+			r = pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, NULL);
+			if (r != 0) cb_eperror(r);
+			r = pthread_rwlock_rdlock(&regions[region].rwlock);
+			if (r != 0) cb_eperror(r);
+
+			r = cb_send_msg(conn->sockfd, CB_CMD_PASTE, region, regions[region].data_size);
+			if (r == -1) {
+				cb_log("send_msg failed r = %d, errno = %d\n", r, errno);
+				// Connection died!
+				r = pthread_rwlock_unlock(&regions[region].rwlock);
+				if (r != 0) cb_eperror(r);
+				r = pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
+				if (r != 0) cb_eperror(r);
+				break;
+			} // TODO
+			if (r == -2) {
+				cb_log("send_msg invalid message r = %d, errno = %d\n", r, errno);
+				// Kill connection!
+				r = pthread_rwlock_unlock(&regions[region].rwlock);
+				if (r != 0) cb_eperror(r);
+				r = pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
+				if (r != 0) cb_eperror(r);
+				break;
+			} // TODO
+			cb_log("[SEND] cmd = %d, region = %d, data_size = %d, r = %d, errno = %d\n", CB_CMD_PASTE, region, regions[region].data_size, r, errno);
+
+			r = cb_send(conn->sockfd, regions[region].data, regions[region].data_size);
+			if (r == -1) {
+				cb_log("%s", "send data failed\n");
+				// Connection died!
+				r = pthread_rwlock_unlock(&regions[region].rwlock);
+				if (r != 0) cb_eperror(r);
+				r = pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
+				if (r != 0) cb_eperror(r);
+				break;
+			} // TODO
+			cb_log("[SEND] data = %s, r = %d, errno = %d\n", regions[region].data, r, errno);
+
+			// End Critical section: Unlock the region
+			r = pthread_rwlock_unlock(&regions[region].rwlock);
+			if (r != 0) cb_eperror(r);
+			r = pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
+			if (r != 0) cb_eperror(r);
+		}
+		else if (cmd == CB_CMD_WAIT) {
 		}
 	}
 
@@ -180,3 +279,23 @@ void *serve_app(void *arg)
 
 	return NULL;
 }
+
+// Free temporary data buffer & connection and remove connection from global list.
+void cleanup_serve_app(void *arg)
+{
+	int r;
+
+	struct clean *clean = (struct clean *) arg;
+	if (*clean->data != NULL) free(*clean->data);
+
+	// TODO: lock app_conn_list
+	r = pthread_rwlock_wrlock(&app_conn_list_rwlock);
+	if (r != 0) cb_eperror(r);
+	r = conn_remove(clean->conn);
+	if (r != 0) cb_eperror(r);
+	r = pthread_rwlock_unlock(&app_conn_list_rwlock);
+	if (r != 0) cb_eperror(r);
+
+	conn_destroy(clean->conn);
+}
+

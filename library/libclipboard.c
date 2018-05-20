@@ -88,9 +88,9 @@ int clipboard_copy(int clipboard_id, int region, void *buf, size_t count)
 	// Send the 'copy' message
 	r = cb_send_msg(clipboard_id, CB_CMD_COPY, (uint8_t) region, (uint32_t) count);
 	// return 0 on error, errno is set
-	// error might be all the normal errors or EAGAIN/EWOULDBLOCK because
+	// error might be all the normal errors plus EAGAIN/EWOULDBLOCK because
 	// clipboard_connect set a send timeout. It's up to the app to investigate
-	// errno. // TODO: remove this comment? it might confuse the prof
+	// errno.
 	if (r == -1) return 0;
 	// Fatal error: app tried to send invalid message.
 	assert(r != -2);
@@ -144,8 +144,9 @@ int clipboard_paste(int clipboard_id, int region, void *buf, size_t count)
 	if (resp_data == NULL) exit(1); // TODO
 	// Get clipboard data
 	r = cb_recv(clipboard_id, (void *) resp_data, resp_data_size);
-	if (r == -1 || r == 0) return 0; // Receiving failed
+	if (r == -1 || r == 0) { free(resp_data); return 0; } // Receiving failed
 
+	assert(resp_data_size > 0);
 	size_t copy_size = resp_data_size;
 	if (resp_data_size > count)
 		copy_size = count;
