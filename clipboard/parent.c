@@ -60,22 +60,12 @@ void cleanup_serve_parent(void *arg)
 	int r;
 	int *parent = (int *) arg;
 
-	puts("cancelling parent thread");
-
-
-	r = pthread_rwlock_wrlock(&mode_rwlock);
-	if (r != 0) cb_eperror(r);
-	// TODO: Now im the root!!
-	close(*parent);
-	root = true;
-	r = pthread_rwlock_unlock(&mode_rwlock);
-	if (r != 0) cb_eperror(r);
+	cb_log("%s", "cancelling parent thread\n");
 }
 
 void *serve_parent(void *arg)
 {
-	//int r;
-
+	int r;
 	char **argv = (char **) arg;
 	int parent = connect_parent(argv[2], argv[3]);
 
@@ -99,6 +89,14 @@ void *serve_parent(void *arg)
 	*/
 
 	sleep(100);
+
+	r = pthread_rwlock_wrlock(&mode_rwlock);
+	if (r != 0) cb_eperror(r);
+	// TODO: Now im the root!!
+	close(parent);
+	root = true;
+	r = pthread_rwlock_unlock(&mode_rwlock);
+	if (r != 0) cb_eperror(r);
 
 	pthread_cleanup_pop(1);
 

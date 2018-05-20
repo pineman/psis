@@ -19,6 +19,8 @@ void init_globals(void)
 {
 	int r;
 
+	main_tid = pthread_self();
+
 	// Initialize conn_list dummy heads
 	child_conn_list = calloc(1, sizeof(struct conn));
 	if (child_conn_list == NULL) cb_eperror(errno);
@@ -34,13 +36,7 @@ void init_globals(void)
 	r = pthread_rwlock_init(&mode_rwlock, NULL);
 	if (r != 0) cb_eperror(r);
 
-	// Initialize regions
-	for (int i = 0; i < CB_NUM_REGIONS; i++) {
-		regions[i].data = NULL;
-		regions[i].data_size = 0;
-		r = pthread_rwlock_init(&regions[i].rwlock, NULL);
-		if (r != 0) cb_eperror(r);
-	}
+	init_regions();
 }
 
 void free_globals(void)
@@ -52,30 +48,28 @@ void free_globals(void)
 	pthread_rwlock_destroy(&app_conn_list_rwlock);
 	pthread_rwlock_destroy(&mode_rwlock);
 
-	for (int i = 0; i < CB_NUM_REGIONS; i++) {
-		free(regions[i].data);
-		pthread_rwlock_destroy(&regions[i].rwlock);
-	}
+	destroy_regions();
 }
 
-void create_threads(char *argv[], pthread_t *parent_serve_tid, pthread_t *app_accept_tid, pthread_t *child_accept_tid)
+void create_threads(char *argv[])
 {
 	int r;
 
 	// Create thread for parent connection (if needed)
 	if (!root) {
-		r = pthread_create(parent_serve_tid, NULL, serve_parent, argv);
+		r = pthread_create(&parent_serve_tid, NULL, serve_parent, argv);
 		if (r != 0) cb_eperror(r);
 	}
 	// Create listening threads
-	r = pthread_create(app_accept_tid, NULL, app_accept, NULL);
+	r = pthread_create(&app_accept_tid, NULL, app_accept, NULL);
 	if (r != 0) cb_eperror(r);
-	r = pthread_create(child_accept_tid, NULL, child_accept, NULL);
+	r = pthread_create(&child_accept_tid, NULL, child_accept, NULL);
 	if (r != 0) cb_eperror(r);
 }
 
-void main_cleanup(pthread_t parent_serve_tid, pthread_t app_accept_tid, pthread_t child_accept_tid)
+void main_cleanup(void *arg)
 {
+	(void) arg;
 	int r;
 
 	// Cancel and join threads
@@ -106,12 +100,16 @@ void main_cleanup(pthread_t parent_serve_tid, pthread_t app_accept_tid, pthread_
 
 int main(int argc, char *argv[])
 {
+	// Initialize globals declared in clipboard.h
+	init_globals();
+
 	/* In order to launch the clipboard in connected mode it is necessary for
 	 * the user to use the command line argument -c followed by the
 	 * address and port of another clipboard. */
 	if (argc > 1) {
 		if (argc != 4) {
 			printf("Usage: %s -c <address> <port>\n", argv[0]);
+			free_globals();
 			exit(EXIT_FAILURE);
 		}
 
@@ -120,18 +118,16 @@ int main(int argc, char *argv[])
 
 	int r;
 
+	pthread_cleanup_push(main_cleanup, NULL);
+
 	// Block most signals. All threads will inherit the signal mask,
 	// and hence will also block most signals.
 	sigset_t sigset;
 	r = block_signals(&sigset);
 	if (r == -1) cb_eperror(r);
 
-	// Initialize globals declared in clipboard.h
-	init_globals();
-
 	// Create parent, app & child listening threads
-	pthread_t parent_serve_tid, app_accept_tid, child_accept_tid;
-	create_threads(argv, &parent_serve_tid, &app_accept_tid, &child_accept_tid);
+	create_threads(argv);
 
 	// Handle signals via sigwait() on main thread
 	while (1) {
@@ -144,10 +140,11 @@ int main(int argc, char *argv[])
 
 		if (sig == SIGINT || sig == SIGTERM) {
 			puts("Exiting...");
-			main_cleanup(parent_serve_tid, app_accept_tid, child_accept_tid);
-			pthread_exit(NULL);
+			break;
 		}
 	}
+
+	pthread_cleanup_pop(1);
 
 	return EXIT_SUCCESS;
 }

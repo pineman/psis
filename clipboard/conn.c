@@ -13,7 +13,7 @@ int conn_new(struct conn **conn, int sockfd)
 {
 	int r;
 
-	*conn = malloc(sizeof(struct conn));
+	*conn = calloc(1, sizeof(struct conn));
 	if (*conn == NULL) return errno;
 
 	r = init_mutex(&(*conn)->mutex);
