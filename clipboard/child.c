@@ -44,45 +44,110 @@ void *child_accept(void *arg)
 	int r;
 	int child_socket = listen_child();
 
-	pthread_t t;
-	while (1) {
-		int c = accept( child_socket, NULL, 0);
-		if (c == -1) { cb_eperror(errno); continue; }
+	pthread_cleanup_push(cleanup_child_accept, &child_socket);
 
-		r = pthread_create(&t, NULL, serve_child, &c);
-		if (r != 0) { cb_eperror(r); close (c); continue; }
+	while (1) {
+		int child = accept(child_socket, NULL, 0);
+		if (child == -1) goto cont;
+
+		struct conn *conn = NULL;
+		r = conn_new(&conn, child);
+		if (r != 0) goto cont_conn;
+
+		r = pthread_create(&conn->tid, NULL, serve_child, conn);
+		if (r != 0) goto cont_conn;
+
+		r = conn_append(child_conn_list, conn, &child_conn_list_rwlock);
+		if (r != 0) cb_eperror(r);
+		continue;
+
+	cont_conn:
+		conn_destroy(conn);
+	cont:
+		cb_perror(errno);
 	}
 
-	close(child_socket);
+	pthread_cleanup_pop(1);
+}
 
-	return NULL;
+void cleanup_child_accept(void *arg)
+{
+	int r;
+	int *inet_socket = (int *) arg;
+	struct conn *conn;
+	pthread_t t;
+
+	cb_log("%s", "cleaning up child_accept\n");
+
+	// Cancel all child threads (always fetch next of head)
+	while (1) {
+		r = pthread_rwlock_rdlock(&child_conn_list_rwlock);
+		if (r != 0) cb_eperror(r);
+		conn = child_conn_list->next;
+		r = pthread_rwlock_unlock(&child_conn_list_rwlock);
+		if (r != 0) cb_eperror(r);
+		if (conn == NULL) break;
+		t = conn->tid;
+
+		r = pthread_cancel(t);
+		if (r != 0) cb_eperror(r);
+		r = pthread_join(t, NULL);
+		if (r != 0) cb_eperror(r);
+	}
+
+	// Close inet socket
+	close(*inet_socket);
 }
 
 void *serve_child(void *arg)
 {
-	int c = *((int *) arg);
+	int r;
+	struct conn *conn = (struct conn *) arg;
 
-	printf("new thread have client %d\n", c);
+	uint8_t cmd = 0;
+	uint8_t region = 0;
+	uint32_t data_size = 0;
+	char *data = NULL;
 
-	sleep(100);
+	struct clean clean = {.data = &data, .conn = conn};
+	pthread_cleanup_push(cleanup_serve_child, &clean);
 
-	/*
-	if (!root) {
-		// Send to the parent
-		write(parent, buf);
+	while (1)
+	{
+		r = cb_recv_msg(conn->sockfd, &cmd, &region, &data_size);
+		if (r == 0) { cb_log("%s", "child disconnect\n"); break; } // TODO
+		if (r == -1) { cb_log("recv_msg failed r = %d, errno = %d\n", r, errno); break; } // TODO
+		if (r == -2) { cb_log("recv_msg got invalid message r = %d, errno = %d\n", r, errno); break; } // TODO
+		cb_log("[GOT] cmd = %d, region = %d, data_size = %d\n", cmd, region, data_size);
+
+		// Can only receive copy from children. Terminate connection if not
+		if (cmd != CB_CMD_COPY) {
+			break;
+		}
+
+		do_copy(conn->sockfd, region, data_size, &data);
 	}
-	else {
-		// im the root, do global update (serialize and send to childs)
-		lock(regions[region]);
-		reigons[region].buf = buf
-		unlock(regions[region]);
 
-		lock(global_update)
-		for (child in child_conn) child.send(buf)
-		unlock(global_update)
-	}*/
+	// Make thread non-joinable: accept loop cleanup will not join() us because
+	// we need to die right now (our connection died).
+	r = pthread_detach(pthread_self());
+	if (r != 0) cb_perror(r);
 
-	close(c);
+	pthread_cleanup_pop(1);
 
 	return NULL;
 }
+
+// Free temporary data buffer & connection and remove connection from global list.
+void cleanup_serve_child(void *arg)
+{
+	int r;
+	struct clean *clean = (struct clean *) arg;
+	if (*clean->data != NULL) free(*clean->data);
+
+	r = conn_remove(clean->conn, &child_conn_list_rwlock);
+	if (r != 0) cb_eperror(r);
+
+	conn_destroy(clean->conn);
+}
+

@@ -87,11 +87,16 @@ void cleanup_app_accept(void *arg)
 
 	cb_log("%s", "cleaning up app_accept\n");
 
-	// Transverse app connections list and cancel threads
-	conn = app_conn_list->next;
-	while (conn != NULL) {
+	// Cancel all app threads (always fetch next of dummy head)
+	while (1) {
+		r = pthread_rwlock_rdlock(&app_conn_list_rwlock);
+		if (r != 0) cb_eperror(r);
+		conn = app_conn_list->next;
+		r = pthread_rwlock_unlock(&app_conn_list_rwlock);
+		if (r != 0) cb_eperror(r);
+		if (conn == NULL) break;
 		t = conn->tid;
-		conn = conn->next;
+
 		r = pthread_cancel(t);
 		if (r != 0) cb_eperror(r);
 		r = pthread_join(t, NULL);
@@ -120,96 +125,33 @@ void *serve_app(void *arg)
 	while (1)
 	{
 		r = cb_recv_msg(conn->sockfd, &cmd, &region, &data_size);
-		if (r == 0) { cb_log("%s", "app disconnect\n"); break; }
+		if (r == 0) { cb_log("%s", "app disconnect\n"); break; } // TODO
 		if (r == -1) { cb_log("recv_msg failed r = %d, errno = %d\n", r, errno); break; } // TODO
 		if (r == -2) { cb_log("recv_msg got invalid message r = %d, errno = %d\n", r, errno); break; } // TODO
 		cb_log("[GOT] cmd = %d, region = %d, data_size = %d\n", cmd, region, data_size);
 
 		if (cmd == CB_CMD_COPY) {
-			cb_log("%s", "[GOT] cmd copy\n");
-			if (data_size == 0) { cb_log("%s", "got data_size == 0\n"); break; } // TODO
-
-			// Allocate space for data app will send
-			data = malloc(data_size);
-			if (data == NULL) {
-				// TODO inform the client we have no space for data
-				cb_perror(errno);
-				continue;
-			}
-
-			// Receive data from app
-			r = cb_recv(conn->sockfd, data, data_size);
-			if (r == 0) { cb_log("app disconnect, r = %d, errno = %d\n", r, errno); break; }
-			if (r == -1) { cb_log("recv failed, r = %d, errno = %d\n", r, errno); break; }
-			cb_log("[GOT] data = %s\n", data);
-
-			if (!root) {
-				// Send to parent conn
-				free(data);
-				data = NULL; // don't double free
-			}
-			else {
-				// we are the root, update region and send down to children
-				update_region(region, data_size, &data);
-				send_region_down(region);
-			}
+			do_copy(conn->sockfd, region, data_size, &data);
 		}
 		else if (cmd == CB_CMD_REQ_PASTE) {
 			cb_log("%s", "[GOT] cmd req_paste\n");
 			if (data_size != 0) { cb_log("%s", "got data_size != 0\n"); break; } // TODO
 
-			// Critical section: reading from regions[region]
-			r = pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, NULL);
-			if (r != 0) cb_eperror(r);
-			r = pthread_rwlock_rdlock(&regions[region].rwlock);
-			if (r != 0) cb_eperror(r);
-
-			cb_log("[SEND] cmd = %d, region = %d, data_size = %d, r = %d, errno = %d\n", CB_CMD_PASTE, region, regions[region].data_size, r, errno);
-			r = cb_send_msg(conn->sockfd, CB_CMD_PASTE, region, regions[region].data_size);
-			if (r == -1) {
-				cb_log("send_msg failed r = %d, errno = %d\n", r, errno);
-				// Connection died!
-				r = pthread_rwlock_unlock(&regions[region].rwlock);
-				if (r != 0) cb_eperror(r);
-				r = pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
-				if (r != 0) cb_eperror(r);
-				break;
-			} // TODO
-			if (r == -2) {
-				cb_log("send_msg invalid message r = %d, errno = %d\n", r, errno);
-				// Kill connection!
-				r = pthread_rwlock_unlock(&regions[region].rwlock);
-				if (r != 0) cb_eperror(r);
-				r = pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
-				if (r != 0) cb_eperror(r);
-				break;
-			} // TODO
-
-			cb_log("[SEND] data = %s, r = %d, errno = %d\n", regions[region].data, r, errno);
-			r = cb_send(conn->sockfd, regions[region].data, regions[region].data_size);
-			if (r == -1) {
-				cb_log("%s", "send data failed\n");
-				// Connection died!
-				r = pthread_rwlock_unlock(&regions[region].rwlock);
-				if (r != 0) cb_eperror(r);
-				r = pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
-				if (r != 0) cb_eperror(r);
-				break;
-			} // TODO
-
-			// End Critical section: Unlock the region
-			r = pthread_rwlock_unlock(&regions[region].rwlock);
-			if (r != 0) cb_eperror(r);
-			r = pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
-			if (r != 0) cb_eperror(r);
+			r = paste_region_app(region, conn->sockfd);
+			if (r == false) break; // Terminate connection
 		}
-		else if (cmd == CB_CMD_WAIT) {
+		else if (cmd == CB_CMD_REQ_WAIT) {
+			cb_log("%s", "[GOT] cmd req_wait\n");
+			if (data_size != 0) { cb_log("%s", "got data_size != 0\n"); break; } // TODO
+
+			r = paste_region_app(region, conn->sockfd);
+			if (r == false) break; // Terminate connection
 		}
 	}
 
 	// Make thread non-joinable: accept loop cleanup will not join() us because
-	// we need to die right now.
-	r = pthread_detach(conn->tid);
+	// we need to die right now (our connection died).
+	r = pthread_detach(pthread_self());
 	if (r != 0) cb_perror(r);
 
 	pthread_cleanup_pop(1);

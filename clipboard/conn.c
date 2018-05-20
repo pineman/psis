@@ -45,11 +45,11 @@ int conn_append(struct conn *head, struct conn *new, pthread_rwlock_t *rwlock)
 	r = pthread_rwlock_wrlock(rwlock);
 	if (r != 0) return r;
 
-	// Prev
+	// Prev (might be NULL if list is empty)
 	struct conn *old = head->next;
 	if (old != NULL) old->prev = new;
 	new->next = old;
-	// Next
+	// Next (is new)
 	head->next = new;
 	new->prev = head;
 

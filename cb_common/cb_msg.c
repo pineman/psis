@@ -18,24 +18,26 @@
 #define SEND_TIMEOUT 3 // 3 seconds
 int cb_setsockopt(int sockfd)
 {
-	int r;
+// TODO: remove because clipboard_wait
+	(void) sockfd;
+	//int r;
 
-#ifdef SO_SNDTIMEO
-	// Set a sending timeout, just in case the clipboard server does not
-	// respond in a timely fashion.
-	struct timeval t;
-	t.tv_sec = SEND_TIMEOUT;
-	t.tv_usec = 0;
-	r = setsockopt(sockfd, SOL_SOCKET, SO_SNDTIMEO, &t, sizeof(t));
-	if (r == -1) return -1;
-#endif
-
-#ifdef SO_RCVTIMEO
-	// Set a receiving timeout, just in case the clipboard server does not
-	// respond in a timely fashion.
-	r = setsockopt(sockfd, SOL_SOCKET, SO_RCVTIMEO, &t, sizeof(t));
-	if (r == -1) return -1;
-#endif
+//#ifdef SO_SNDTIMEO
+//	// Set a sending timeout, just in case the clipboard server does not
+//	// respond in a timely fashion.
+//	struct timeval t;
+//	t.tv_sec = SEND_TIMEOUT;
+//	t.tv_usec = 0;
+//	r = setsockopt(sockfd, SOL_SOCKET, SO_SNDTIMEO, &t, sizeof(t));
+//	if (r == -1) return -1;
+//#endif
+//
+//#ifdef SO_RCVTIMEO
+//	// Set a receiving timeout, just in case the clipboard server does not
+//	// respond in a timely fashion.
+//	r = setsockopt(sockfd, SOL_SOCKET, SO_RCVTIMEO, &t, sizeof(t));
+//	if (r == -1) return -1;
+//#endif
 
 #ifdef SO_NOSIGPIPE
 	//	Make sure that SIGPIPE signal is not generated when writing to a
@@ -126,9 +128,6 @@ static bool valid_msg(uint8_t cmd, uint8_t region)
 	return true;
 }
 
-// TODO: send_msg and recv_msg could receive a mutex argument protecting
-// `clipboard_id`
-
 // Send message to a clipboard server
 // return value is:
 //	-2 in case the message requested to be sent is invalid
@@ -189,4 +188,30 @@ ssize_t cb_recv_msg(int clipboard_id, uint8_t *cmd, uint8_t *region, uint32_t *d
 	// data_size (4 bytes)
 	*data_size = ((uint32_t) *(msg+1+1));
 	return r;
+}
+
+#include "../clipboard/clipboard.h"
+bool cb_send_msg_data(int sockfd, uint8_t cmd, uint8_t region, uint32_t data_size, char *data)
+{
+	int r;
+
+	cb_log("[SEND] cmd = %d, region = %d, data_size = %d\n", cmd, region, data_size);
+	r = cb_send_msg(sockfd, cmd, region, data_size);
+	if (r == -1) {
+		// send_msg failed, terminate connection
+		cb_log("send_msg failed r = %d, errno = %d\n", r, errno);
+		return false;
+	}
+	// Fatal error: we tried to send an invalid message
+	assert(r != -2);
+
+	cb_log("[SEND] data = %s\n", data);
+	r = cb_send(sockfd, data, data_size);
+	if (r == -1) {
+		// send data failed, terminate connection
+		cb_log("send data failed r = %d, errno = %d\n", r, errno);
+		return false;
+	}
+
+	return true;
 }

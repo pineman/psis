@@ -71,23 +71,26 @@ void main_cleanup(void *arg)
 {
 	(void) arg;
 	int r;
+	void *ret; // TODO: remove assert and ret
 
 	// Cancel and join threads
-	if (!root) {
+	r = pthread_rwlock_rdlock(&mode_rwlock);
+	if (r != 0) cb_eperror(r);
+	bool mroot = root;
+	r = pthread_rwlock_unlock(&mode_rwlock);
+	if (r != 0) cb_eperror(r);
+	if (!mroot) {
 		r = pthread_cancel(parent_serve_tid);
 		if (r != 0) cb_eperror(r);
+		r = pthread_join(parent_serve_tid, &ret);
+		if (r != 0) cb_eperror(r);
+		assert(ret == PTHREAD_CANCELED);
 	}
 	r = pthread_cancel(app_accept_tid);
 	if (r != 0) cb_eperror(r);
 	r = pthread_cancel(child_accept_tid);
 	if (r != 0) cb_eperror(r);
 
-	void *ret; // TODO: remove assert and ret
-	if (!root) {
-		r = pthread_join(parent_serve_tid, &ret);
-		if (r != 0) cb_eperror(r);
-		assert(ret == PTHREAD_CANCELED);
-	}
 	r = pthread_join(app_accept_tid, &ret);
 	if (r != 0) cb_eperror(r);
 	assert(ret == PTHREAD_CANCELED);

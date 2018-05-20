@@ -55,21 +55,27 @@ int connect_parent(char *addr, char *port)
 	return parent;
 }
 
-void cleanup_serve_parent(void *arg)
-{
-	int r;
-	int *parent = (int *) arg;
-
-	cb_log("%s", "cancelling parent thread\n");
-}
-
 void *serve_parent(void *arg)
 {
 	int r;
 	char **argv = (char **) arg;
 	int parent = connect_parent(argv[2], argv[3]);
+	r = conn_new(&parent_conn, parent);
+	if (r != 0) cb_eperror(r);
 
-	pthread_cleanup_push(cleanup_serve_parent, &parent);
+	uint8_t cmd = 0;
+	uint8_t region = 0;
+	uint32_t data_size = 0;
+	char *data = NULL;
+
+	pthread_cleanup_push(cleanup_serve_parent, NULL);
+
+	while (1) {
+		r = cb_recv_msg(parent_conn->sockfd, &cmd, &region, &data_size);
+		if (r == 0) { cb_log("%s", "parent disconnect\n"); break; } // TODO
+		if (r == -1) { cb_log("recv_msg failed r = %d, errno = %d\n", r, errno); break; } // TODO
+		if (r == -2) { cb_log("recv_msg got invalid message r = %d, errno = %d\n", r, errno); break; } // TODO
+	}
 
 	/*
 	buf = malloc(100)
@@ -85,20 +91,32 @@ void *serve_parent(void *arg)
 	for (remote in remotes) remote.send(buf)
 	unlock(global_update)
 
-	// TODO: no need to free buf because it always ends up in regions. so just free regions
 	*/
 
-	sleep(100);
-
-	r = pthread_rwlock_wrlock(&mode_rwlock);
-	if (r != 0) cb_eperror(r);
-	// TODO: Now im the root!!
-	close(parent);
-	root = true;
-	r = pthread_rwlock_unlock(&mode_rwlock);
-	if (r != 0) cb_eperror(r);
+	// Make thread non-joinable: no one will join() us because we need to die
+	// right now (our connection to parent died).
+	r = pthread_detach(pthread_self());
+	if (r != 0) cb_perror(r);
 
 	pthread_cleanup_pop(1);
 
 	return NULL;
 }
+
+void cleanup_serve_parent(void *arg)
+{
+	int r;
+	(void) arg;
+
+	cb_log1("%s", "cancelling parent thread\n");
+
+	r = pthread_rwlock_wrlock(&mode_rwlock);
+	if (r != 0) cb_eperror(r);
+	// Parent connection dead, now we are the root.
+	conn_destroy(parent_conn);
+	parent_conn = NULL;
+	root = true;
+	r = pthread_rwlock_unlock(&mode_rwlock);
+	if (r != 0) cb_eperror(r);
+}
+

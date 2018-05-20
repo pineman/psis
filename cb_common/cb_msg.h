@@ -15,7 +15,7 @@ enum cb_cmd {
 	CB_CMD_COPY,
 	CB_CMD_REQ_PASTE,
 	CB_CMD_PASTE,
-	CB_CMD_WAIT,
+	CB_CMD_REQ_WAIT,
 	CB_NUM_CMDS // Number of commands, keep at the end
 };
 
@@ -26,3 +26,4 @@ ssize_t cb_recv(int sockfd, void *buf, size_t len);
 // Send and receive messages
 ssize_t cb_send_msg(int clipboard_id, uint8_t cmd, uint8_t region, uint32_t data_size);
 ssize_t cb_recv_msg(int clipboard_id, uint8_t *cmd, uint8_t *region, uint32_t *data_size);
+bool cb_send_msg_data(int sockfd, uint8_t cmd, uint8_t region, uint32_t data_size, char *data);

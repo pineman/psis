@@ -24,6 +24,7 @@ int main(int argc, char *argv[])
 			r = clipboard_paste(cb, i, buf, 100);
 			if (r == 0) { mperror(errno); break; }
 			printf("%d \"%s\" %d\n", i, buf, j++);
+			sleep(1);
 		}
 		if (r == 0) break;
 	}

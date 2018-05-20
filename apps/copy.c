@@ -26,6 +26,7 @@ int main(int argc, char *argv[])
 			r = clipboard_copy(cb, i, buf, strlen(buf) + 1);
 			if (r == 0) { mperror(errno); break; }
 			printf("%d \"%s\" \n", i, buf);
+			sleep(1);
 		}
 		if (r == 0) break;
 	}
