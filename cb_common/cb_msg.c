@@ -190,26 +190,21 @@ ssize_t cb_recv_msg(int clipboard_id, uint8_t *cmd, uint8_t *region, uint32_t *d
 	return r;
 }
 
-#include "../clipboard/clipboard.h"
 bool cb_send_msg_data(int sockfd, uint8_t cmd, uint8_t region, uint32_t data_size, char *data)
 {
 	int r;
 
-	cb_log("[SEND] cmd = %d, region = %d, data_size = %d\n", cmd, region, data_size);
 	r = cb_send_msg(sockfd, cmd, region, data_size);
 	if (r == -1) {
 		// send_msg failed, terminate connection
-		cb_log("send_msg failed r = %d, errno = %d\n", r, errno);
 		return false;
 	}
 	// Fatal error: we tried to send an invalid message
 	assert(r != -2);
 
-	cb_log("[SEND] data = %s\n", data);
 	r = cb_send(sockfd, data, data_size);
 	if (r == -1) {
 		// send data failed, terminate connection
-		cb_log("send data failed r = %d, errno = %d\n", r, errno);
 		return false;
 	}
 

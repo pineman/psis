@@ -3,6 +3,7 @@
 #include <assert.h>
 
 #include <unistd.h>
+#include <sys/socket.h>
 #include <pthread.h>
 
 #include "conn.h"
@@ -81,6 +82,57 @@ int conn_remove(struct conn *rm, pthread_rwlock_t *rwlock)
 	if (r != 0) return r;
 	r = pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
 	if (r != 0) return r;
+
+	return 0;
+}
+
+void conn_accept_loop(int server, struct conn *head, pthread_rwlock_t *rwlock, void *(*handle_conn)(void *))
+{
+	int r;
+
+	while (1) {
+		int client = accept(server, NULL, 0);
+		if (client == -1) goto cont;
+
+		struct conn *conn = NULL;
+		r = conn_new(&conn, client);
+		if (r != 0) goto cont_conn;
+
+		r = pthread_create(&conn->tid, NULL, handle_conn, conn);
+		if (r != 0) goto cont_conn;
+
+		r = conn_append(head, conn, rwlock);
+		if (r != 0) cb_eperror(r);
+		continue;
+
+	cont_conn:
+		conn_destroy(conn);
+	cont:
+		cb_perror(errno);
+	}
+}
+
+int conn_cancel_all(struct conn *head, pthread_rwlock_t *rwlock)
+{
+	int r;
+	struct conn *conn;
+	pthread_t t;
+
+	// Cancel all connection threads (always fetch next of dummy head)
+	while (1) {
+		r = pthread_rwlock_rdlock(rwlock);
+		if (r != 0) return r;
+		conn = head->next;
+		r = pthread_rwlock_unlock(rwlock);
+		if (r != 0) return r;
+		if (conn == NULL) break;
+		t = conn->tid;
+
+		r = pthread_cancel(t);
+		if (r != 0) return r;
+		r = pthread_join(t, NULL);
+		if (r != 0) return r;
+	}
 
 	return 0;
 }

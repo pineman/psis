@@ -49,59 +49,27 @@ void *app_accept(void *arg) // TODO: abstract away into generic function?
 // Args could be listen function, client handle function and array to put connections in to pass to clean_up
 {
 	(void) arg;
-	int r;
 	int app_socket = listen_local();
 
 	pthread_cleanup_push(cleanup_app_accept, &app_socket);
 
-	while (1) {
-		int app = accept(app_socket, NULL, 0);
-		if (app == -1) goto cont;
-
-		struct conn *conn = NULL;
-		r = conn_new(&conn, app);
-		if (r != 0) goto cont_conn;
-
-		r = pthread_create(&conn->tid, NULL, serve_app, conn);
-		if (r != 0) goto cont_conn;
-
-		r = conn_append(app_conn_list, conn, &app_conn_list_rwlock);
-		if (r != 0) cb_eperror(r);
-		continue;
-
-	cont_conn:
-		conn_destroy(conn);
-	cont:
-		cb_perror(errno);
-	}
+	conn_accept_loop(app_socket, app_conn_list, &app_conn_list_rwlock, serve_app);
 
 	pthread_cleanup_pop(1);
+
+	return NULL;
 }
 
 void cleanup_app_accept(void *arg)
 {
 	int r;
 	int *local_socket = (int *) arg;
-	struct conn *conn;
-	pthread_t t;
 
 	cb_log("%s", "cleaning up app_accept\n");
 
-	// Cancel all app threads (always fetch next of dummy head)
-	while (1) {
-		r = pthread_rwlock_rdlock(&app_conn_list_rwlock);
-		if (r != 0) cb_eperror(r);
-		conn = app_conn_list->next;
-		r = pthread_rwlock_unlock(&app_conn_list_rwlock);
-		if (r != 0) cb_eperror(r);
-		if (conn == NULL) break;
-		t = conn->tid;
-
-		r = pthread_cancel(t);
-		if (r != 0) cb_eperror(r);
-		r = pthread_join(t, NULL);
-		if (r != 0) cb_eperror(r);
-	}
+	// Cancel all app threads
+	r = conn_cancel_all(app_conn_list, &app_conn_list_rwlock);
+	if (r != 0) cb_perror(r);
 
 	// Close and unlink local socket
 	close(*local_socket);

@@ -41,59 +41,27 @@ int listen_child(void)
 void *child_accept(void *arg)
 {
 	(void) arg;
-	int r;
 	int child_socket = listen_child();
 
 	pthread_cleanup_push(cleanup_child_accept, &child_socket);
 
-	while (1) {
-		int child = accept(child_socket, NULL, 0);
-		if (child == -1) goto cont;
-
-		struct conn *conn = NULL;
-		r = conn_new(&conn, child);
-		if (r != 0) goto cont_conn;
-
-		r = pthread_create(&conn->tid, NULL, serve_child, conn);
-		if (r != 0) goto cont_conn;
-
-		r = conn_append(child_conn_list, conn, &child_conn_list_rwlock);
-		if (r != 0) cb_eperror(r);
-		continue;
-
-	cont_conn:
-		conn_destroy(conn);
-	cont:
-		cb_perror(errno);
-	}
+	conn_accept_loop(child_socket, child_conn_list, &child_conn_list_rwlock, serve_child);
 
 	pthread_cleanup_pop(1);
+
+	return NULL;
 }
 
 void cleanup_child_accept(void *arg)
 {
 	int r;
 	int *inet_socket = (int *) arg;
-	struct conn *conn;
-	pthread_t t;
 
 	cb_log("%s", "cleaning up child_accept\n");
 
-	// Cancel all child threads (always fetch next of head)
-	while (1) {
-		r = pthread_rwlock_rdlock(&child_conn_list_rwlock);
-		if (r != 0) cb_eperror(r);
-		conn = child_conn_list->next;
-		r = pthread_rwlock_unlock(&child_conn_list_rwlock);
-		if (r != 0) cb_eperror(r);
-		if (conn == NULL) break;
-		t = conn->tid;
-
-		r = pthread_cancel(t);
-		if (r != 0) cb_eperror(r);
-		r = pthread_join(t, NULL);
-		if (r != 0) cb_eperror(r);
-	}
+	// Cancel all child threads
+	r = conn_cancel_all(child_conn_list, &child_conn_list_rwlock);
+	if (r != 0) cb_perror(r);
 
 	// Close inet socket
 	close(*inet_socket);
