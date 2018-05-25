@@ -1,0 +1,113 @@
+% !TEX encoding = UTF-8 Unicode
+\documentclass[a4paper, titlepage, portuguese]{article}
+\usepackage[margin=2.5cm]{geometry}
+%\usepackage{fontspec} % XeLaTeX
+\usepackage[T1]{fontenc} % LaTeX
+\usepackage[utf8]{inputenc} % LaTeX
+\usepackage{newtxmath, newtxtext}
+\usepackage{csquotes}
+\usepackage{babel}
+%\usepackage[backend=bibtex]{biblatex}
+%\usepackage[backend=biber]{biblatex}
+%\addbibresource{bibliography.bib}
+
+\usepackage{indentfirst}
+\usepackage{graphicx}
+	\graphicspath{{images/}}
+\usepackage{grffile}
+\usepackage{float}
+\usepackage[tableposition=top]{caption}
+\usepackage{amsmath}
+	%\allowdisplaybreaks
+\usepackage[makeroom]{cancel}
+\usepackage[arrowdel]{physics}
+\usepackage{esint}
+\usepackage{siunitx}
+	\sisetup{inter-unit-product =\ensuremath{.}, output-complex-root=\ensuremath{j},
+		complex-root-position=before-number}
+\usepackage{hyperref}
+
+% Section styles
+%\renewcommand{\thesection}{\Roman{section}}
+%\renewcommand{\thesubsection}{\alph{subsection})}
+%\renewcommand{\thesubsubsection}{\roman{subsubsection}.}
+\renewcommand{\thesubsubsection}{\alph{subsubsection})}
+
+% Useful commands
+\newcommand{\eq}{\Leftrightarrow} % Equivalente
+% Para numerar apenas uma equação
+\newcommand\numberthis{\addtocounter{equation}{1}\tag{\theequation}}
+\newcommand\e{\mathrm{e} }
+\newcommand\jj{\mathrm{j} }
+
+% Header and footer
+\usepackage{fancyhdr}
+\pagestyle{fancy}
+\fancyhf{}
+\lhead{Systems Programming}
+\rhead{Project Assignment}
+\lfoot{IST - MEEC}
+\rfoot{Page \thepage}
+\renewcommand{\headrulewidth}{1pt}
+\renewcommand{\footrulewidth}{0.5pt}
+
+% Document
+\begin{document}
+	\begin{titlepage}
+		\center
+		\textsc{\bfseries\LARGE Instituto Superior Técnico}\\[1cm] % Name of your university/college
+		\includegraphics[height=1.5cm]{IST_Logo.pdf}\\[2.5cm]
+
+		\textsc{\Large Electrical and Computer Engineering}\\[0.5cm] % Major heading such as course name
+		\textsc{\Large Systems Programming}\\[0.5cm] % Minor heading such as course title
+		\textsc{\large 2017/2018 2\textsuperscript{nd} Semester}\\[2cm]
+
+		\rule{\textwidth}{1.6pt}\vspace*{-\baselineskip}\vspace*{2pt} % Thick horizontal line
+		\rule{\textwidth}{0.4pt}\\[\baselineskip] % Thin horizontal line
+			\textsc{\Huge Project Assignment}\\[0.2cm]
+			\bigskip
+			\textsc{\large Distributed Clipboard}\\[0.2cm]
+		\rule{\textwidth}{0.4pt}\vspace*{-\baselineskip}\vspace{3.2pt} % Thin horizontal line
+		\rule{\textwidth}{1.6pt}\\[6cm]
+
+		\begin{minipage}{0.9\textwidth}
+			\begin{flushleft} \large
+				\begin{Large}\bfseries\textsc{Authors}\end{Large}\\[0.4cm]
+				\begin{tabular}{l l l}
+					André Agostinho	& 84001 & \normalsize andre.f.agostinho@tecnico.ulisboa.pt \\
+					João Pinheiro		& 84086 & \normalsize joao.castro.pinheiro@tecnico.ulisboa.pt \\
+				\end{tabular}
+			\end{flushleft}
+		\end{minipage}\\[0.5cm]
+
+		%\large \textsc{Laboratório segunda-feira, 09h30-11h30, Grupo D\\
+		%\large 12 de março de 2018}\\[1cm]
+		\setcounter{page}{0}
+	\end{titlepage}
+	\tableofcontents \newpage
+
+	\section{Introduction}
+
+	\section{Architecture}
+	\subsection{Communication Protocol}
+	\subsection{Request Handling}
+
+	\section{Threads}
+	\subsection{Shared Data}
+	\subsection{Synchronization}
+
+	\section{Replication}
+
+	\section{Error Handling}
+
+	%\begin{figure}[h]
+	%	\centering
+	%	\includegraphics[width=0.6\linewidth]{figure.pdf}
+	%	\caption{An example figure}
+	%	\label{fig:figure-example}
+	%\end{figure}
+
+	%Ver \autoref{fig:figure-example}
+
+	%\printbibliography
+\end{document}
