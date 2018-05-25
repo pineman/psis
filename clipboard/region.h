@@ -10,7 +10,7 @@ struct region {
 void init_regions(void);
 void destroy_regions(void);
 
-bool do_copy(int sockfd, uint8_t region, uint32_t data_size, char **data, bool copy_down);
+bool do_copy(int sockfd, uint8_t region, uint32_t data_size, char **data, bool copy_down, bool initial);
 
 void copy_to_parent(uint8_t region, uint32_t data_size, char *data);
 

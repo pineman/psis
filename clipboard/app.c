@@ -108,7 +108,7 @@ void *serve_app(void *arg)
 			r = pthread_rwlock_unlock(&mode_rwlock);
 			if (r != 0) cb_eperror(r);
 
-			r = do_copy(conn->sockfd, region, data_size, &data, mroot);
+			r = do_copy(conn->sockfd, region, data_size, &data, mroot, false);
 			if (r == false) break; // Terminate connection
 		}
 		else if (cmd == CB_CMD_REQ_PASTE) {

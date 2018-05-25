@@ -71,6 +71,8 @@ void *serve_parent(void *arg)
 	struct clean clean = {.data = &data, .conn = parent_conn};
 	pthread_cleanup_push(cleanup_serve_parent, &clean);
 
+	int init_msg = 0;
+	bool initial = true;
 	while (1)
 	{
 		r = cb_recv_msg(parent_conn->sockfd, &cmd, &region, &data_size);
@@ -84,8 +86,14 @@ void *serve_parent(void *arg)
 			break;
 		}
 
+		// Initial sync: Receiving CB_NUM_REGIONS copy messages.
+		if (init_msg < CB_NUM_REGIONS)
+			init_msg++;
+		else
+			initial = false;
+
 		// Parent has sent us a copy: update regions and send to children.
-		r = do_copy(parent_conn->sockfd, region, data_size, &data, true);
+		r = do_copy(parent_conn->sockfd, region, data_size, &data, true, initial);
 		if (r == false) break; // Terminate connection
 	}
 

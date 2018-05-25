@@ -85,6 +85,45 @@ void *serve_child(void *arg)
 	struct clean clean = {.data = &data, .conn = conn};
 	pthread_cleanup_push(cleanup_serve_child, &clean);
 
+	// TODO
+	// Critical section: Writing to child socket
+	r = pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, NULL);
+	if (r != 0) cb_eperror(r);
+	r = pthread_mutex_lock(&conn->mutex);
+	if (r != 0) cb_eperror(r);
+
+	bool success;
+	for (int region = 0; region < CB_NUM_REGIONS; region++)
+	{
+		// Critical section: reading from region
+		r = pthread_rwlock_rdlock(&regions[region].rwlock);
+		if (r != 0) cb_eperror(r);
+
+		data_size = regions[region].data_size;
+		data = regions[region].data;
+
+		success = cb_send_msg_data(conn->sockfd, CB_CMD_COPY, region, data_size, data);
+		cb_log("[SENT] cmd = %d, region = %d, data_size = %d, data = %s\n", CB_CMD_COPY, region, data_size, data);
+
+		// End Critical section: Unlock regions[region]
+		r = pthread_rwlock_unlock(&regions[region].rwlock);
+		if (r != 0) cb_eperror(r);
+
+		if (!success) break;
+	}
+	data = NULL; // don't double free inside cleanup
+
+	// End Critical section: Unlock the child socket
+	r = pthread_mutex_unlock(&conn->mutex);
+	if (r != 0) cb_eperror(r);
+	r = pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
+	if (r != 0) cb_eperror(r);
+
+	// If child connection died during initial sync, quit immediatly
+	if (!success) {
+		goto out;
+	}
+
 	while (1)
 	{
 		r = cb_recv_msg(conn->sockfd, &cmd, &region, &data_size);
@@ -105,10 +144,11 @@ void *serve_child(void *arg)
 		r = pthread_rwlock_unlock(&mode_rwlock);
 		if (r != 0) cb_eperror(r);
 
-		r = do_copy(conn->sockfd, region, data_size, &data, mroot);
+		r = do_copy(conn->sockfd, region, data_size, &data, mroot, false);
 		if (r == false) break; // Terminate connection
 	}
 
+out:
 	// Make thread non-joinable: accept loop cleanup will not join() us because
 	// we need to die right now (our connection died).
 	r = pthread_detach(pthread_self());

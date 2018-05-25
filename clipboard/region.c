@@ -11,8 +11,9 @@ void init_regions(void)
 	int r;
 
 	for (int i = 0; i < CB_NUM_REGIONS; i++) {
-		regions[i].data = NULL;
-		regions[i].data_size = 0;
+		regions[i].data = malloc(1);
+		regions[i].data[0] = '\0';
+		regions[i].data_size = 1;
 		r = pthread_rwlock_init(&regions[i].rwlock, NULL);
 		if (r != 0) cb_eperror(r);
 	}
@@ -27,7 +28,7 @@ void destroy_regions(void)
 	}
 }
 
-bool do_copy(int sockfd, uint8_t region, uint32_t data_size, char **data, bool copy_down)
+bool do_copy(int sockfd, uint8_t region, uint32_t data_size, char **data, bool copy_down, bool initial)
 {
 	int r;
 
@@ -59,7 +60,9 @@ bool do_copy(int sockfd, uint8_t region, uint32_t data_size, char **data, bool c
 		// Update our region and send down to children (copy down)
 		cb_log("%s", "update region copy to children\n");
 		update_region(region, data_size, data);
-		copy_to_children(region);
+		if (!initial) {
+			copy_to_children(region);
+		}
 	}
 
 	return true;
@@ -143,6 +146,7 @@ void copy_to_children(uint8_t region)
 	// Send to all children
 	struct conn *child_conn = child_conn_list->next;
 	bool success;
+	pthread_t tid;
 	while (child_conn != NULL) {
 		// Critical section: Writing to a child socket
 		r = pthread_mutex_lock(&child_conn->mutex);
@@ -155,18 +159,18 @@ void copy_to_children(uint8_t region)
 		r = pthread_mutex_unlock(&child_conn->mutex);
 		if (r != 0) cb_eperror(r);
 
+		tid = child_conn->tid;
 		child_conn = child_conn->next;
 		// TODO: maybe can be joined with some other function
 		if (!success) {
-			pthread_t t = child_conn->tid;
 			// Cancel the child's connection thread. Unlock our lock on
 			// child_conn_list to allow the child's thread to die and cleanup.
 			r = pthread_rwlock_unlock(&child_conn_list_rwlock);
 			if (r != 0) cb_eperror(r);
 
-			r = pthread_cancel(t); // Will remove and destroy the connection
+			r = pthread_cancel(tid); // Will remove and destroy the connection
 			if (r != 0) cb_eperror(r);
-			r = pthread_join(t, NULL);
+			r = pthread_join(tid, NULL);
 			if (r != 0) cb_eperror(r);
 
 			// Continue looping

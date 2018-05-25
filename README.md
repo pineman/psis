@@ -6,7 +6,6 @@
  * Leave clipboard server replication for later (single mode first)
 
 ### TODO
- * Initial Sync!
  * on app copy, its `write()` does not wait for the servers `read()` of course. However, the server may fail to allocate enough memory to receive the data, in which case nothing, in practice, was copied to the server's region. So the app should wait for a reply from the server saying it failed, and `clipboard_copy` should return 0.
 
 # Apps (clients)

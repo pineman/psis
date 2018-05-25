@@ -4,6 +4,7 @@ apps/copy
 apps/paste
 clipboard/clipboard
 .dummy
+report/build/report.pdf
 
 ## Core latex/pdflatex auxiliary files:
 *.aux
