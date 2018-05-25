@@ -6,9 +6,7 @@
  * Leave clipboard server replication for later (single mode first)
 
 ### TODO
- * When a new clipboard connects to its parent, the parent has to send all its regions!
- * quando o meu parent morre agora sou eu o parent
- * `serve_local_client` == `serve_remote_client` ??????
+ * Initial Sync!
  * on app copy, its `write()` does not wait for the servers `read()` of course. However, the server may fail to allocate enough memory to receive the data, in which case nothing, in practice, was copied to the server's region. So the app should wait for a reply from the server saying it failed, and `clipboard_copy` should return 0.
 
 # Apps (clients)

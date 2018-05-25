@@ -1,5 +1,5 @@
 #CC=clang
-#CCX=
+#CXX=
 CFLAGS=-std=c11 -pthread
 CFLAGS+=-Wall -Wextra -Wpedantic -Wunused-result -Wunreachable-code
 #CFLAGS=-Weverything
