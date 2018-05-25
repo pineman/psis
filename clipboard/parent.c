@@ -68,30 +68,26 @@ void *serve_parent(void *arg)
 	uint32_t data_size = 0;
 	char *data = NULL;
 
-	pthread_cleanup_push(cleanup_serve_parent, NULL);
+	struct clean clean = {.data = &data, .conn = parent_conn};
+	pthread_cleanup_push(cleanup_serve_parent, &clean);
 
-	while (1) {
+	while (1)
+	{
 		r = cb_recv_msg(parent_conn->sockfd, &cmd, &region, &data_size);
-		if (r == 0) { cb_log("%s", "parent disconnect\n"); break; } // TODO
-		if (r == -1) { cb_log("recv_msg failed r = %d, errno = %d\n", r, errno); break; } // TODO
-		if (r == -2) { cb_log("recv_msg got invalid message r = %d, errno = %d\n", r, errno); break; } // TODO
+		cb_log("[GOT] cmd = %d, region = %d, data_size = %d\n", cmd, region, data_size);
+		if (r == 0) { cb_log("%s", "parent disconnect\n"); break; }
+		if (r == -1) { cb_log("recv_msg failed r = %d, errno = %d\n", r, errno); break; }
+		if (r == -2) { cb_log("recv_msg got invalid message r = %d, errno = %d\n", r, errno); break; }
+
+		// Can only receive copy from parent. Terminate connection if not
+		if (cmd != CB_CMD_COPY) {
+			break;
+		}
+
+		// Parent has sent us a copy: update regions and send to children.
+		r = do_copy(parent_conn->sockfd, region, data_size, &data, true);
+		if (r == false) break; // Terminate connection
 	}
-
-	/*
-	buf = malloc(100)
-	recv(buf)
-	// Got update from parent, write to my regions and send downwards to remotes
-	// TODO: same as global update in local and remote?
-	lock(regions[region]);
-	free(regions[region]);
-	reigons[region].buf = buf
-	unlock(regions[region]);
-
-	lock(global_update)
-	for (remote in remotes) remote.send(buf)
-	unlock(global_update)
-
-	*/
 
 	// Make thread non-joinable: no one will join() us because we need to die
 	// right now (our connection to parent died).
@@ -106,9 +102,10 @@ void *serve_parent(void *arg)
 void cleanup_serve_parent(void *arg)
 {
 	int r;
-	(void) arg;
+	struct clean *clean = (struct clean *) arg;
+	if (*clean->data != NULL) free(*clean->data);
 
-	cb_log1("%s", "cancelling parent thread\n");
+	cb_log("%s", "cancelling parent thread\n");
 
 	r = pthread_rwlock_wrlock(&mode_rwlock);
 	if (r != 0) cb_eperror(r);

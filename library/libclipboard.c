@@ -44,7 +44,7 @@ int clipboard_connect(char *clipboard_dir)
 	strcpy(clipboard_addr.sun_path, path_buf);
 	socklen_t clipboard_addrlen = sizeof(clipboard_addr);
 
-	// Try to set a send/recv timeout and ignore SIGPIPE.
+	// Try to set SO_NOSIGPIPE.
 	r = cb_setsockopt(clipboard_fd);
 	if (r == -1) return -1;
 

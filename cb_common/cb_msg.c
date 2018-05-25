@@ -10,34 +10,13 @@
 #include "cb_common.h"
 #include "cb_msg.h"
 
-// Set socket options, if available
-// Set a send/recv timeout and ignore SIGPIPE.
+// Set socket option NOSIGPIPE, if available (macOS, etc.)
 // return value is:
 //	-1 on error and errno is set
 //	0 on success
-#define SEND_TIMEOUT 3 // 3 seconds
 int cb_setsockopt(int sockfd)
 {
-// TODO: remove because clipboard_wait
 	(void) sockfd;
-	//int r;
-
-//#ifdef SO_SNDTIMEO
-//	// Set a sending timeout, just in case the clipboard server does not
-//	// respond in a timely fashion.
-//	struct timeval t;
-//	t.tv_sec = SEND_TIMEOUT;
-//	t.tv_usec = 0;
-//	r = setsockopt(sockfd, SOL_SOCKET, SO_SNDTIMEO, &t, sizeof(t));
-//	if (r == -1) return -1;
-//#endif
-//
-//#ifdef SO_RCVTIMEO
-//	// Set a receiving timeout, just in case the clipboard server does not
-//	// respond in a timely fashion.
-//	r = setsockopt(sockfd, SOL_SOCKET, SO_RCVTIMEO, &t, sizeof(t));
-//	if (r == -1) return -1;
-//#endif
 
 #ifdef SO_NOSIGPIPE
 	//	Make sure that SIGPIPE signal is not generated when writing to a
@@ -60,8 +39,8 @@ ssize_t cb_send(int sockfd, void *buf, size_t len)
 	assert(len != 0);
 
 	int flags = 0;
-#ifdef MSG_NOSIGNAL // Try to ignore SIGPIPE
-	flags = MSG_NOSIGNAL;
+#ifdef MSG_NOSIGNAL
+	flags = MSG_NOSIGNAL; // Do not receive SIGPIPE
 #endif
 
 	size_t nleft = len;
@@ -192,7 +171,7 @@ ssize_t cb_recv_msg(int clipboard_id, uint8_t *cmd, uint8_t *region, uint32_t *d
 
 bool cb_send_msg_data(int sockfd, uint8_t cmd, uint8_t region, uint32_t data_size, char *data)
 {
-	int r;
+	ssize_t r;
 
 	r = cb_send_msg(sockfd, cmd, region, data_size);
 	if (r == -1) {

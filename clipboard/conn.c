@@ -34,7 +34,6 @@ void conn_destroy(struct conn *conn)
 // Safely append to a conn_list
 int conn_append(struct conn *head, struct conn *new, pthread_rwlock_t *rwlock)
 {
-	// TODO: remove assert
 	assert(head != NULL);
 	assert(head->prev == NULL);
 	assert(new != NULL);
@@ -65,7 +64,6 @@ int conn_append(struct conn *head, struct conn *new, pthread_rwlock_t *rwlock)
 // Safely remove from a conn_list
 int conn_remove(struct conn *rm, pthread_rwlock_t *rwlock)
 {
-	// TODO: remove assert
 	assert(rm != NULL);
 
 	int r;

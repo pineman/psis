@@ -21,13 +21,18 @@ int listen_child(void)
 	if (child_socket == -1) cb_eperror(errno);
 
 	struct sockaddr_in local_addr;
-	//local_addr.sin_family = AF_INET;
-	//local_addr.sin_port = 0;
-	//local_addr.sin_addr.s_addr = INADDR_ANY;
+	local_addr.sin_family = AF_INET;
+	if (root) { // TODO
+		local_addr.sin_port = htons(1337);
+	}
+	else {
+		local_addr.sin_port = 0;
+	}
+	local_addr.sin_addr.s_addr = INADDR_ANY;
 	socklen_t local_addrlen = sizeof(struct sockaddr_in);
 
-	//r = bind(child_socket, (struct sockaddr *) &local_addr, local_addrlen);
-	//if (r == -1) cb_eperror(errno);
+	r = bind(child_socket, (struct sockaddr *) &local_addr, local_addrlen);
+	if (r == -1) cb_eperror(errno);
 	r = listen(child_socket, SOMAXCONN);
 	if (r == -1) cb_eperror(errno);
 
@@ -83,17 +88,25 @@ void *serve_child(void *arg)
 	while (1)
 	{
 		r = cb_recv_msg(conn->sockfd, &cmd, &region, &data_size);
-		if (r == 0) { cb_log("%s", "child disconnect\n"); break; } // TODO
-		if (r == -1) { cb_log("recv_msg failed r = %d, errno = %d\n", r, errno); break; } // TODO
-		if (r == -2) { cb_log("recv_msg got invalid message r = %d, errno = %d\n", r, errno); break; } // TODO
 		cb_log("[GOT] cmd = %d, region = %d, data_size = %d\n", cmd, region, data_size);
+		if (r == 0) { cb_log("%s", "child disconnect\n"); break; }
+		if (r == -1) { cb_log("recv_msg failed r = %d, errno = %d\n", r, errno); break; }
+		if (r == -2) { cb_log("recv_msg got invalid message r = %d, errno = %d\n", r, errno); break; }
 
 		// Can only receive copy from children. Terminate connection if not
 		if (cmd != CB_CMD_COPY) {
 			break;
 		}
 
-		do_copy(conn->sockfd, region, data_size, &data);
+		// TODO
+		r = pthread_rwlock_rdlock(&mode_rwlock);
+		if (r != 0) cb_eperror(r);
+		bool mroot = root;
+		r = pthread_rwlock_unlock(&mode_rwlock);
+		if (r != 0) cb_eperror(r);
+
+		r = do_copy(conn->sockfd, region, data_size, &data, mroot);
+		if (r == false) break; // Terminate connection
 	}
 
 	// Make thread non-joinable: accept loop cleanup will not join() us because

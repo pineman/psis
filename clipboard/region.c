@@ -27,12 +27,12 @@ void destroy_regions(void)
 	}
 }
 
-bool do_copy(int sockfd, uint8_t region, uint32_t data_size, char **data)
+bool do_copy(int sockfd, uint8_t region, uint32_t data_size, char **data, bool copy_down)
 {
 	int r;
 
 	cb_log("%s", "[GOT] cmd copy\n");
-	if (data_size == 0) { cb_log("%s", "got data_size == 0\n"); return false; } // TODO
+	if (data_size == 0) { cb_log("%s", "got data_size == 0\n"); return false; }
 
 	// Allocate space for data the app will send
 	*data = malloc(data_size);
@@ -43,24 +43,21 @@ bool do_copy(int sockfd, uint8_t region, uint32_t data_size, char **data)
 
 	// Receive data
 	r = cb_recv(sockfd, *data, data_size);
-	if (r == 0) { cb_log("app disconnect, r = %d, errno = %d\n", r, errno); return false; } // TODO
-	if (r == -1) { cb_log("recv failed, r = %d, errno = %d\n", r, errno); return false; } // TODO
-	cb_log("[GOT] data = %s\n", data);
+	if (r == 0) { cb_log("app disconnect, r = %d, errno = %d\n", r, errno); return false; }
+	if (r == -1) { cb_log("recv failed, r = %d, errno = %d\n", r, errno); return false; }
+	cb_log("[GOT] data = %s\n", *data);
 
-	r = pthread_rwlock_rdlock(&mode_rwlock);
-	if (r != 0) cb_eperror(r);
-	bool mroot = root;
-	r = pthread_rwlock_unlock(&mode_rwlock);
-	if (r != 0) cb_eperror(r);
-	if (!mroot) {
+	if (!copy_down) {
 		// Send to parent conn
+		cb_log("%s", "copy to parent\n");
 		copy_to_parent(region, data_size, *data);
 
 		free(*data);
 		*data = NULL; // don't double free
 	}
 	else {
-		// We are the root, update our regions and send down to children
+		// Update our region and send down to children (copy down)
+		cb_log("%s", "update region copy to children\n");
 		update_region(region, data_size, data);
 		copy_to_children(region);
 	}
@@ -83,6 +80,7 @@ void copy_to_parent(uint8_t region, uint32_t data_size, char *data)
 	if (r != 0) cb_eperror(r);
 
 	success = cb_send_msg_data(parent_conn->sockfd, CB_CMD_COPY, region, data_size, data);
+	cb_log("[SENT] cmd = %d, region = %d, data_size = %d, data = %s\n", CB_CMD_COPY, region, data_size, data);
 
 	// End Critical section: Unlock the parent socket
 	r = pthread_mutex_unlock(&parent_conn->mutex);
@@ -151,19 +149,21 @@ void copy_to_children(uint8_t region)
 		if (r != 0) cb_eperror(r);
 
 		success = cb_send_msg_data(child_conn->sockfd, CB_CMD_COPY, region, data_size, data);
+		cb_log("[SENT] cmd = %d, region = %d, data_size = %d, data = %s\n", CB_CMD_COPY, region, data_size, data);
 
 		// End Critical section: Unlock the child socket
 		r = pthread_mutex_unlock(&child_conn->mutex);
 		if (r != 0) cb_eperror(r);
+
 		child_conn = child_conn->next;
 		// TODO: maybe can be joined with some other function
 		if (!success) {
+			pthread_t t = child_conn->tid;
 			// Cancel the child's connection thread. Unlock our lock on
 			// child_conn_list to allow the child's thread to die and cleanup.
 			r = pthread_rwlock_unlock(&child_conn_list_rwlock);
 			if (r != 0) cb_eperror(r);
 
-			pthread_t t = child_conn->tid;
 			r = pthread_cancel(t); // Will remove and destroy the connection
 			if (r != 0) cb_eperror(r);
 			r = pthread_join(t, NULL);

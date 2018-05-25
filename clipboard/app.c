@@ -45,8 +45,7 @@ int listen_local(void)
 	return local_socket;
 }
 
-void *app_accept(void *arg) // TODO: abstract away into generic function?
-// Args could be listen function, client handle function and array to put connections in to pass to clean_up
+void *app_accept(void *arg)
 {
 	(void) arg;
 	int app_socket = listen_local();
@@ -71,7 +70,8 @@ void cleanup_app_accept(void *arg)
 	r = conn_cancel_all(app_conn_list, &app_conn_list_rwlock);
 	if (r != 0) cb_perror(r);
 
-	// Close and unlink local socket
+	// Close and unlink local socket (ignore return value since we're exiting
+	// anyway).
 	close(*local_socket);
 	unlink(CB_SOCKET);
 }
@@ -93,24 +93,34 @@ void *serve_app(void *arg)
 	while (1)
 	{
 		r = cb_recv_msg(conn->sockfd, &cmd, &region, &data_size);
-		if (r == 0) { cb_log("%s", "app disconnect\n"); break; } // TODO
-		if (r == -1) { cb_log("recv_msg failed r = %d, errno = %d\n", r, errno); break; } // TODO
-		if (r == -2) { cb_log("recv_msg got invalid message r = %d, errno = %d\n", r, errno); break; } // TODO
 		cb_log("[GOT] cmd = %d, region = %d, data_size = %d\n", cmd, region, data_size);
+		if (r == 0) { cb_log("%s", "app disconnect\n"); break; }
+		if (r == -1) { cb_log("recv_msg failed r = %d, errno = %d\n", r, errno); break; }
+		if (r == -2) { cb_log("recv_msg got invalid message r = %d, errno = %d\n", r, errno); break; }
 
 		if (cmd == CB_CMD_COPY) {
-			do_copy(conn->sockfd, region, data_size, &data);
+			cb_log("%s", "[GOT] cmd copy\n");
+
+			// TODO
+			r = pthread_rwlock_rdlock(&mode_rwlock);
+			if (r != 0) cb_eperror(r);
+			bool mroot = root;
+			r = pthread_rwlock_unlock(&mode_rwlock);
+			if (r != 0) cb_eperror(r);
+
+			r = do_copy(conn->sockfd, region, data_size, &data, mroot);
+			if (r == false) break; // Terminate connection
 		}
 		else if (cmd == CB_CMD_REQ_PASTE) {
 			cb_log("%s", "[GOT] cmd req_paste\n");
-			if (data_size != 0) { cb_log("%s", "got data_size != 0\n"); break; } // TODO
+			if (data_size != 0) { cb_log("%s", "got data_size != 0\n"); break; }
 
 			r = paste_region_app(region, conn->sockfd);
 			if (r == false) break; // Terminate connection
 		}
 		else if (cmd == CB_CMD_REQ_WAIT) {
 			cb_log("%s", "[GOT] cmd req_wait\n");
-			if (data_size != 0) { cb_log("%s", "got data_size != 0\n"); break; } // TODO
+			if (data_size != 0) { cb_log("%s", "got data_size != 0\n"); break; }
 
 			r = paste_region_app(region, conn->sockfd);
 			if (r == false) break; // Terminate connection

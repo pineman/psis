@@ -15,6 +15,26 @@
 #include "child.h"
 #include "parent.h"
 
+/* Globals */
+pthread_t main_tid, parent_serve_tid, app_accept_tid, child_accept_tid;
+// Global array of regions
+struct region regions[CB_NUM_REGIONS];
+
+// Connection lists
+// Dummy head node doubly-linked list
+struct conn *child_conn_list;
+pthread_rwlock_t child_conn_list_rwlock; // Protects child_conn_list
+struct conn *app_conn_list;
+pthread_rwlock_t app_conn_list_rwlock; // Protects app_conn_list
+
+// Parent connection
+struct conn *parent_conn;
+// Are we in connected mode or are we the root (i.e. we have no parent)
+bool root;
+// Protects `parent_conn` and `root` boolean. They will only change once at
+// most (if the parent connection dies) but they must still be protected.
+pthread_rwlock_t mode_rwlock;
+
 void init_globals(void)
 {
 	int r;
@@ -71,7 +91,6 @@ void main_cleanup(void *arg)
 {
 	(void) arg;
 	int r;
-	void *ret; // TODO: remove assert and ret
 
 	// Cancel and join threads
 	r = pthread_rwlock_rdlock(&mode_rwlock);
@@ -82,21 +101,18 @@ void main_cleanup(void *arg)
 	if (!mroot) {
 		r = pthread_cancel(parent_serve_tid);
 		if (r != 0) cb_eperror(r);
-		r = pthread_join(parent_serve_tid, &ret);
+		r = pthread_join(parent_serve_tid, NULL);
 		if (r != 0) cb_eperror(r);
-		assert(ret == PTHREAD_CANCELED);
 	}
 	r = pthread_cancel(app_accept_tid);
 	if (r != 0) cb_eperror(r);
 	r = pthread_cancel(child_accept_tid);
 	if (r != 0) cb_eperror(r);
 
-	r = pthread_join(app_accept_tid, &ret);
+	r = pthread_join(app_accept_tid, NULL);
 	if (r != 0) cb_eperror(r);
-	assert(ret == PTHREAD_CANCELED);
-	r = pthread_join(child_accept_tid, &ret);
+	r = pthread_join(child_accept_tid, NULL);
 	if (r != 0) cb_eperror(r);
-	assert(ret == PTHREAD_CANCELED);
 
 	free_globals();
 }

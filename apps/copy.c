@@ -21,12 +21,12 @@ int main(int argc, char *argv[])
 	char buf[100];
 	int j = 0;
 	while (1) {
-		for (int i = 0; i < 1; i++ ) {
-			sprintf(buf, "I make the copy %d", j++);
+		for (int i = 0; i < 10; i++ ) {
+			sprintf(buf, "%d Hello from app", j++);
 			r = clipboard_copy(cb, i, buf, strlen(buf) + 1);
 			if (r == 0) { mperror(errno); break; }
 			printf("%d \"%s\" \n", i, buf);
-			sleep(1);
+			sleep(4);
 		}
 		if (r == 0) break;
 	}
