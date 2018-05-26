@@ -36,4 +36,4 @@
  * `command` is 1 byte `uint8_t`
  * `region` is 1 byte `uint8_t`
  * `size` is 4 bytes `uint32_t`
- * `data` is whatever `size + 1` (+ 1 for extra \0)
+ * `data` is whatever `size`

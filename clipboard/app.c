@@ -21,8 +21,7 @@ int listen_local(void)
 {
 	int r; // Auxiliary variable just for return values
 
-	int local_socket;
-	local_socket = socket(AF_UNIX, SOCK_STREAM, 0);
+	int local_socket = socket(AF_UNIX, SOCK_STREAM, 0);
 	if (local_socket == -1) cb_eperror(errno);
 
 	struct sockaddr_un local_addr;

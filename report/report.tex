@@ -26,6 +26,9 @@
 	\sisetup{inter-unit-product =\ensuremath{.}, output-complex-root=\ensuremath{j},
 		complex-root-position=before-number}
 \usepackage{hyperref}
+\usepackage{listings}
+	\lstset{basicstyle=\ttfamily, language=C, tabsize=4}
+\usepackage{dirtree}
 
 % Section styles
 %\renewcommand{\thesection}{\Roman{section}}
@@ -87,10 +90,79 @@
 	\tableofcontents \newpage
 
 	\section{Introduction}
+	\par
+	The goal of this project was to implement a distributed clipboard and an application interface to it. Applications can copy (write) and paste (read) from and to regions on a local clipboard, which can be connected to another remote clipboard so as to synchronize their regions. The resulting network is a tree, as a clipboard can only connect to one other (the parent), but it can itself have connections to various children clipboards. There is always one clipboard which did not start by being connected, and that is the root of the tree. This tree is shown in <le figure ref>
 
 	\section{Architecture}
+	\subsection{Source Tree}
+	\dirtree{%
+	.1 /.
+	.2 apps/.
+	.3 copy.c // Hello.
+	.3 paste.c.
+	.3 paste.
+	.3 copy.
+	.2 cb\_common/.
+	.3 cb\_common.h.
+	.3 cb\_msg.h.
+	.3 cb\_msg.c.
+	.2 library/.
+	.3 libclipboard.h.
+	.3 libclipboard.c.
+	.2 clipboard/.
+	.3 app.h.
+	.3 conn.h.
+	.3 parent.h.
+	.3 child.h.
+	.3 child.c.
+	.3 conn.c.
+	.3 clipboard.
+	.3 utils.c.
+	.3 clipboard.h.
+	.3 parent.c.
+	.3 app.c.
+	.3 utils.h.
+	.3 region.h.
+	.3 region.c.
+	.3 main.c.
+	}
 	\subsection{Communication Protocol}
-	\subsection{Request Handling}
+	\par
+	To communicate between local applications and different clipboards, a simple protocol for messages was implemented as
+	\begin{lstlisting}
+uint8_t command;
+uint8_t region;
+uint32_t data_size;
+uint8_t *data;
+	\end{lstlisting}
+	in which \texttt{data\_size} is the size of the data in the region that is sent immediately afterwards this header. This message header is marshalled into a buffer (of bytes) for sending into the network as
+
+	\begin{table}[H]
+	\centering
+	\begin{tabular}{|*{6}{>{\centering\arraybackslash}p{.10\linewidth}|}}
+		\hline
+		0 & 1 & 2 & 3 & 4 & 5 \\ \hline
+    \texttt{command} & \texttt{region} & \multicolumn{4}{c|}{\texttt{data\_size}} \\ \hline
+    \multicolumn{6}{|c|}{\texttt{data} \ldots} \\ \hline
+	\end{tabular}
+	\end{table}
+	\par
+	All the functions related to communication are in \texttt{common/cb\_msg.c}, as they are shared by the library application interface and the clipboard server itself.
+
+	\subsection{Connection Handling}
+	\par
+	Connections are handled in a one connection per thread model. There are three types of connections: local application connections, children clipboard connections and the optional connection to a parent clipboard. A connection, which is inexorably linked to a thread, is represented by a structure (in conn.h) as
+
+	\begin{lstlisting}
+struct conn {
+	pthread_t tid;
+	int sockfd;
+	pthread_mutex_t mutex; // Protects writes to sockfd if needed
+	struct conn *next;
+	struct conn *prev;
+};
+	\end{lstlisting}
+	in which the pointers \texttt{next} and \texttt{prev} are used to make a doubly-linked list of connections, of which there are two: local applications and children connections (in the implementation dummy head nodes are also used).
 
 	\section{Threads}
 	\subsection{Shared Data}
