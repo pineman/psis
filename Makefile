@@ -1,4 +1,4 @@
-#CC=clang
+CC=clang
 #CXX=
 CFLAGS=-std=c11 -pthread
 CFLAGS+=-Wall -Wextra -Wpedantic -Wunused-result -Wunreachable-code
@@ -12,7 +12,7 @@ CPPFLAGS=-I cb_common -I library -D_POSIX_C_SOURCE="200809L"
 LDFLAGS=-pthread
 LDLIBS=
 SRCDIR=.
-SRC=$(shell find $(SRCDIR) -type f -name "*.c" | cut -d"/" -f2-)
+SRC=$(shell find $(SRCDIR) -name "*.c" -not -path "./.vscode/*" | cut -d"/" -f2-)
 
 # Define executables and their link dependencies here
 EXECS = clipboard/clipboard apps/copy apps/paste

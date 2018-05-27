@@ -26,9 +26,10 @@
 	\sisetup{inter-unit-product =\ensuremath{.}, output-complex-root=\ensuremath{j},
 		complex-root-position=before-number}
 \usepackage{hyperref}
-\usepackage{listings}
-	\lstset{basicstyle=\ttfamily, language=C, tabsize=4}
+\usepackage[outputdir=build]{minted}
+	\usemintedstyle{tango}
 \usepackage{dirtree}
+\usepackage{tabto}
 
 % Section styles
 %\renewcommand{\thesection}{\Roman{section}}
@@ -83,65 +84,62 @@
 			\end{flushleft}
 		\end{minipage}\\[0.5cm]
 
-		%\large \textsc{Laboratório segunda-feira, 09h30-11h30, Grupo D\\
-		%\large 12 de março de 2018}\\[1cm]
 		\setcounter{page}{0}
 	\end{titlepage}
 	\tableofcontents \newpage
 
 	\section{Introduction}
 	\par
-	The goal of this project was to implement a distributed clipboard and an application interface to it. Applications can copy (write) and paste (read) from and to regions on a local clipboard, which can be connected to another remote clipboard so as to synchronize their regions. The resulting network is a tree, as a clipboard can only connect to one other (the parent), but it can itself have connections to various children clipboards. There is always one clipboard which did not start by being connected, and that is the root of the tree. This tree is shown in <le figure ref>
+	The goal of this project was to implement a distributed clipboard and an application interface to it. Applications can copy (write) and paste (read) from and to regions on a local clipboard, which can be connected to another remote clipboard so as to synchronize their regions. The resulting network is a tree, as a clipboard can connect to only one other clipboard (the parent), but it can itself have connections to various children clipboards. There is always one clipboard which did not start by being connected, and that is the root of the tree. This tree is shown in <le figure ref>
 
 	\section{Architecture}
 	\subsection{Source Tree}
 	\dirtree{%
 	.1 /.
 	.2 apps/.
-	.3 copy.c // Hello.
+	.3 copy.c.
 	.3 paste.c.
 	.3 paste.
 	.3 copy.
 	.2 cb\_common/.
-	.3 cb\_common.h.
+	.3 cb\_common.h \tabto*{3cm} \# common macros between library and clipboard .
 	.3 cb\_msg.h.
-	.3 cb\_msg.c.
+	.3 cb\_msg.c \tabto*{3cm} \# low level sending and receiving messages functions .
 	.2 library/.
-	.3 libclipboard.h.
-	.3 libclipboard.c.
+	.3 libclipboard.h \tabto*{3cm} \# apps include this header .
+	.3 libclipboard.c \tabto*{3cm} \# library implementation (apps link to this .o) .
 	.2 clipboard/.
+	.3 clipboard \tabto*{3cm} \# clipboard binary .
+	.3 main.c \tabto*{3cm} \# clipboard entry point .
+	.3 clipboard.h \tabto*{3cm} \# global variables and error handling macros .
+	.3 app.c \tabto*{3cm} \# application accept and handle functions/threads .
 	.3 app.h.
-	.3 conn.h.
-	.3 parent.h.
+	.3 child.c \tabto*{3cm} \# children accept and handle functions/threads .
 	.3 child.h.
-	.3 child.c.
-	.3 conn.c.
-	.3 clipboard.
-	.3 utils.c.
-	.3 clipboard.h.
-	.3 parent.c.
-	.3 app.c.
-	.3 utils.h.
+	.3 parent.c \tabto*{3cm} \# parent connect and handle functions/thread .
+	.3 parent.h.
+	.3 conn.c \tabto*{3cm} \# connection list functions (new, accept, cancel, etc.) .
+	.3 conn.h.
+	.3 region.c \tabto*{3cm} \# region updates and copy/paste logic .
 	.3 region.h.
-	.3 region.c.
-	.3 main.c.
+	.3 utils.c \tabto*{3cm} \# miscellaneous functions .
+	.3 utils.h.
 	}
 	\subsection{Communication Protocol}
 	\par
-	To communicate between local applications and different clipboards, a simple protocol for messages was implemented as
-	\begin{lstlisting}
+	To communicate between local applications and local clipboards and between remote clipboards, a simple format for messages was implemented as
+	\begin{minted}{c}
 uint8_t command;
 uint8_t region;
 uint32_t data_size;
 uint8_t *data;
-	\end{lstlisting}
-	in which \texttt{data\_size} is the size of the data in the region that is sent immediately afterwards this header. This message header is marshalled into a buffer (of bytes) for sending into the network as
-
+	\end{minted}
+	in which \texttt{data\_size} is the size of the data in the region that is sent immediately afterwards this header. This message header is simply marshaled into a buffer (of bytes) for sending into the network as
 	\begin{table}[H]
 	\centering
 	\begin{tabular}{|*{6}{>{\centering\arraybackslash}p{.10\linewidth}|}}
 		\hline
-		0 & 1 & 2 & 3 & 4 & 5 \\ \hline
+		\texttt{msg[0]} & \texttt{msg[1]} & \texttt{msg[2]} & \texttt{msg[3]} & \texttt{msg[4]} & \texttt{msg[5]} \\ \hline
     \texttt{command} & \texttt{region} & \multicolumn{4}{c|}{\texttt{data\_size}} \\ \hline
     \multicolumn{6}{|c|}{\texttt{data} \ldots} \\ \hline
 	\end{tabular}
@@ -151,9 +149,8 @@ uint8_t *data;
 
 	\subsection{Connection Handling}
 	\par
-	Connections are handled in a one connection per thread model. There are three types of connections: local application connections, children clipboard connections and the optional connection to a parent clipboard. A connection, which is inexorably linked to a thread, is represented by a structure (in conn.h) as
-
-	\begin{lstlisting}
+	Connections are handled in a one connection per thread model. There are three types of connections: local application connections, children clipboard connections and the optional connection to a parent clipboard if the clipboard was started in connected mode. A connection, which is inexorably linked to a thread, is represented by a structure (in \texttt{conn.h}) as
+	\begin{minted}{c}
 struct conn {
 	pthread_t tid;
 	int sockfd;
@@ -161,16 +158,49 @@ struct conn {
 	struct conn *next;
 	struct conn *prev;
 };
-	\end{lstlisting}
-	in which the pointers \texttt{next} and \texttt{prev} are used to make a doubly-linked list of connections, of which there are two: local applications and children connections (in the implementation dummy head nodes are also used).
+	\end{minted}
+	in which the pointers \texttt{next} and \texttt{prev} are used to make a doubly-linked list of connections. There are two connection lists: local applications and children connections (in the list implementation dummy head nodes are also used).
 
 	\section{Threads}
-	\subsection{Shared Data}
-	\subsection{Synchronization}
+	\par
+	The clipboard creates several threads to handle many connections:
+	\begin{itemize}
+		\item One thread blocking on \texttt{accept} on the local unix domain socket, waiting for local application connections
+		\item One thread for each local application connection
+		\item One thread blocking on \texttt{accept} on the remote inet socket, waiting for remote children clipboard connections
+		\item One thread for each remote child clipboard connection
+		\item One thread for the parent connection, if the clipboard was started in connected mode
+		\item The main thread blocks most signals and creates the connection accept threads. Then it synchronously waits for signals and handles them (e.g., on \texttt{SIGINT}, the main thread exits and during its cleanup handler cancels and joins the rest of the active threads)
+	\end{itemize}
+
+	\subsection{Shared Data \& Synchronization}
+	\par
+	Global variables, declared in \texttt{clipboard.h}, are shared between threads. These variables are:
+	\begin{itemize}
+		\item \mint{c}|pthread_t main_tid;|
+		The main thread id is global because it is used in the \texttt{cb\_eperror} macro to handle fatal errors (print error and exit). Since the clipboard is multithreaded, and to clean up correctly, we must use \texttt{pthread\_cancel} instead of \texttt{exit}, and so many points in the program may need the main thread id.
+		\item \mint{c}|pthread_t parent_serve_tid;|
+		The parent thread id is global because the parent connection might die during \texttt{copy\_to\_parent}, which means the parent thread must be canceled, and we chose to make the thread id global.
+		\item \mint{c}|struct region regions[CB_NUM_REGIONS];|
+		The local regions, while only written/read by the parent thread, on \texttt{copy} commands, are also read by app threads during a \texttt{paste} command. Each region structure contains a \texttt{rwlock} to synchronize its use.
+		\item \mint{c}|struct conn *child_conn_list;|
+		\item \mint{c}|pthread_rwlock_t child_conn_list_rwlock; // Protects child_conn_list|
+		The list of children connections, and respective read-write lock, are shared between potencially all threads, during a \texttt{copy} command, to propagate updates down. If the clipboard is the root, app and children threads write to all children in \texttt{copy\_to\_children}, and, if it is not, the parent thread does. Also, when a new child connection is accepted in \texttt{child\_accept}, the list is updated.
+		\item \mint{c}|struct conn *app_conn_list;|
+		\item \mint{c}|pthread_rwlock_t app_conn_list_rwlock; // Protects app_conn_list|
+		The list of app connections, and respective read-write lock, while not used directly by other threads, it is used when cancelling all ongoing connections on clipboard exit, during \texttt{cleanup\_app\_accept} (this is also true for the child connections, in the respective accept cleanup routine). Also, when a new app connection is accepted in \texttt{app\_accept}, the list is updated.
+		\item \mint{c}|struct conn *parent_conn;|
+		\item \mint{c}|bool root;|
+		The parent connection is used by app and connection threads, during \texttt{copy\_to\_parent}. Althrough the \texttt{root} boolean is shared between threads, it is only potencially modified once by the parent thread. Since it's just an integer variable, no synchronization (mutex/rwlock) is needed.
+	\end{itemize}
+	\par
+	Additionally, all connection structures contain a mutex (as seen in <le struct conn ref> so that only one thread can write to a socket at a time, to prevent interleaving.
 
 	\section{Replication}
 
 	\section{Error Handling}
+	\par
+	Some errors are fatal, while others are not. For example, any connection error during the \texttt{accept} loops, are printed but otherwise ignored, to keep the server accepting connections. What errors were considered to be fatal or not are easily recognizable in the source code by the use of the macro \texttt{cb\_eperror} (exit and perror) vs. the macro \texttt{cb\_perror}, which only prints the error. Additionally, fatal errors which demonstrate a completely unknown state are handled using the \texttt{assert} function. Errors during \texttt{read} or \texttt{write} calls are handled by cancelling the corresponding connection thread. The cleanup handlers then free all the resources and delete the connection from the appropriate list. The result is that the clipboard server, on all tests performed, is \texttt{valgrind}-clean and exits gracefully.
 
 	%\begin{figure}[h]
 	%	\centering
