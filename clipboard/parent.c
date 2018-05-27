@@ -109,19 +109,14 @@ void *serve_parent(void *arg)
 
 void cleanup_serve_parent(void *arg)
 {
-	int r;
 	struct clean *clean = (struct clean *) arg;
 	if (*clean->data != NULL) free(*clean->data);
 
 	cb_log("%s", "cancelling parent thread\n");
 
-	r = pthread_rwlock_wrlock(&mode_rwlock);
-	if (r != 0) cb_eperror(r);
 	// Parent connection dead, now we are the root.
 	conn_destroy(parent_conn);
 	parent_conn = NULL;
 	root = true;
-	r = pthread_rwlock_unlock(&mode_rwlock);
-	if (r != 0) cb_eperror(r);
 }
 

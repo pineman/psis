@@ -137,14 +137,7 @@ void *serve_child(void *arg)
 			break;
 		}
 
-		// TODO
-		r = pthread_rwlock_rdlock(&mode_rwlock);
-		if (r != 0) cb_eperror(r);
-		bool mroot = root;
-		r = pthread_rwlock_unlock(&mode_rwlock);
-		if (r != 0) cb_eperror(r);
-
-		r = do_copy(conn->sockfd, region, data_size, &data, mroot, false);
+		r = do_copy(conn->sockfd, region, data_size, &data, root, false);
 		if (r == false) break; // Terminate connection
 	}
 

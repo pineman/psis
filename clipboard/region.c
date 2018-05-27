@@ -77,8 +77,6 @@ void copy_to_parent(uint8_t region, uint32_t data_size, char *data)
 	if (r != 0) cb_eperror(r);
 
 	// Critical section: Writing to the parent socket
-	r = pthread_rwlock_rdlock(&mode_rwlock);
-	if (r != 0) cb_eperror(r);
 	r = pthread_mutex_lock(&parent_conn->mutex);
 	if (r != 0) cb_eperror(r);
 
@@ -87,8 +85,6 @@ void copy_to_parent(uint8_t region, uint32_t data_size, char *data)
 
 	// End Critical section: Unlock the parent socket
 	r = pthread_mutex_unlock(&parent_conn->mutex);
-	if (r != 0) cb_eperror(r);
-	r = pthread_rwlock_unlock(&mode_rwlock);
 	if (r != 0) cb_eperror(r);
 
 	if (!success) {

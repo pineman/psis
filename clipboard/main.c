@@ -31,9 +31,6 @@ pthread_rwlock_t app_conn_list_rwlock; // Protects app_conn_list
 struct conn *parent_conn;
 // Are we in connected mode or are we the root (i.e. we have no parent)
 bool root;
-// Protects `parent_conn` and `root` boolean. They will only change once at
-// most (if the parent connection dies) but they must still be protected.
-pthread_rwlock_t mode_rwlock;
 
 void init_globals(void)
 {
@@ -53,8 +50,6 @@ void init_globals(void)
 	if (r != 0) cb_eperror(r);
 
 	root = true;
-	r = pthread_rwlock_init(&mode_rwlock, NULL);
-	if (r != 0) cb_eperror(r);
 
 	init_regions();
 }
@@ -66,7 +61,6 @@ void free_globals(void)
 
 	pthread_rwlock_destroy(&child_conn_list_rwlock);
 	pthread_rwlock_destroy(&app_conn_list_rwlock);
-	pthread_rwlock_destroy(&mode_rwlock);
 
 	destroy_regions();
 }
@@ -93,12 +87,7 @@ void main_cleanup(void *arg)
 	int r;
 
 	// Cancel and join threads
-	r = pthread_rwlock_rdlock(&mode_rwlock);
-	if (r != 0) cb_eperror(r);
-	bool mroot = root;
-	r = pthread_rwlock_unlock(&mode_rwlock);
-	if (r != 0) cb_eperror(r);
-	if (!mroot) {
+	if (!root) {
 		r = pthread_cancel(parent_serve_tid);
 		if (r != 0) cb_eperror(r);
 		r = pthread_join(parent_serve_tid, NULL);
