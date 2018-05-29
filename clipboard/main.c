@@ -73,15 +73,41 @@ void create_threads(char *argv[])
 {
 	int r;
 
+	int *parent_socket; 
+	if (!root) {
+		parent_socket = malloc(sizeof(int));
+		*parent_socket = connect_parent(argv[2], argv[3]);
+		if (*parent_socket == -1) {
+			fprintf(stderr, "Error connecting to parent.\n");
+			cb_perror(errno);
+			exit(EXIT_FAILURE);
+		}
+	}
+	int *children_socket = malloc(sizeof(int));
+	*children_socket = listen_child();
+	if (*children_socket == -1) {
+		fprintf(stderr, "Error listening for child clipboards.\n");
+		cb_perror(errno);
+		exit(EXIT_FAILURE);
+	}
+	int *app_socket = malloc(sizeof(int));
+	*app_socket = listen_local();
+	if (*app_socket == -1) {
+		fprintf(stderr, "Error listening for local applications.\n");
+		cb_perror(errno);
+		exit(EXIT_FAILURE);
+	}
+
 	// Create thread for parent connection (if needed)
 	if (!root) {
-		r = pthread_create(&parent_serve_tid, NULL, serve_parent, argv);
+		r = pthread_create(&parent_serve_tid, NULL, serve_parent, parent_socket);
 		if (r != 0) cb_eperror(r);
 	}
-	// Create listening threads
-	r = pthread_create(&app_accept_tid, NULL, app_accept, NULL);
+	// Create accept threads
+	r = pthread_create(&child_accept_tid, NULL, child_accept, children_socket);
 	if (r != 0) cb_eperror(r);
-	r = pthread_create(&child_accept_tid, NULL, child_accept, NULL);
+
+	r = pthread_create(&app_accept_tid, NULL, app_accept, app_socket);
 	if (r != 0) cb_eperror(r);
 }
 
@@ -135,16 +161,16 @@ int main(int argc, char *argv[])
 
 	int r;
 
-	pthread_cleanup_push(main_cleanup, NULL);
-
 	// Block most signals. All threads will inherit the signal mask,
 	// and hence will also block most signals.
 	sigset_t sigset;
 	r = block_signals(&sigset);
-	if (r == -1) cb_eperror(r);
+	if (r == -1) { cb_perror(r); exit(EXIT_FAILURE); }
 
 	// Create parent, app & child listening threads
 	create_threads(argv);
+
+	pthread_cleanup_push(main_cleanup, NULL);
 
 	// Handle signals via sigwait() on main thread
 	while (1) {

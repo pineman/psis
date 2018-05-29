@@ -26,7 +26,7 @@ void validate_addr(char *addr, char *port, struct sockaddr_in *sockaddr)
 	unsigned long test = 0;
 	errno = 0;
 	test = strtoul(port, &check, 10);
-	if (errno != 0) cb_eperror(errno);
+	if (errno != 0) { cb_perror(errno); exit(EXIT_FAILURE); }
 	if (check == addr || test == 0 || test > UINT16_MAX) {
 		fprintf(stderr, "Port must be: 0 < <port> < %d\n", UINT16_MAX);
 		exit(EXIT_FAILURE);
@@ -44,10 +44,10 @@ int connect_parent(char *addr, char *port)
 	validate_addr(addr, port, &parent_addr);
 
 	int parent = socket(AF_INET, SOCK_STREAM, 0);
-	if (parent == -1) cb_eperror(errno);
+	if (parent == -1) return -1;
 
 	r = connect(parent, (struct sockaddr *) &parent_addr, parent_addrlen);
-	if (r == -1) cb_eperror(errno);
+	if (r == -1) return -1;
 
 	printf("Connected to parent remote clipboard %s:%d\n",
 		inet_ntoa(parent_addr.sin_addr), (int) ntohs(parent_addr.sin_port));
@@ -58,8 +58,7 @@ int connect_parent(char *addr, char *port)
 void *serve_parent(void *arg)
 {
 	int r;
-	char **argv = (char **) arg;
-	int parent = connect_parent(argv[2], argv[3]);
+	int parent = *((int *) arg);
 	r = conn_new(&parent_conn, parent);
 	if (r != 0) cb_eperror(r);
 
@@ -68,7 +67,7 @@ void *serve_parent(void *arg)
 	uint32_t data_size = 0;
 	char *data = NULL;
 
-	struct clean clean = {.data = &data, .conn = parent_conn};
+	struct clean clean = {.data = &data, .conn = parent_conn, .arg = arg };
 	pthread_cleanup_push(cleanup_serve_parent, &clean);
 
 	int init_msg = 0;
@@ -112,9 +111,9 @@ void cleanup_serve_parent(void *arg)
 	int r;
 	struct clean *clean = (struct clean *) arg;
 	if (*clean->data != NULL) free(*clean->data);
+	free(clean->arg);
 
 	cb_log("%s", "parent cleanup\n");
-	getchar();
 
 	// Parent connection dead, now we are the root.
 	r = pthread_rwlock_wrlock(&parent_conn_rwlock);

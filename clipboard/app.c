@@ -22,7 +22,7 @@ int listen_local(void)
 	int r; // Auxiliary variable just for return values
 
 	int local_socket = socket(AF_UNIX, SOCK_STREAM, 0);
-	if (local_socket == -1) cb_eperror(errno);
+	if (local_socket == -1) return -1;
 
 	struct sockaddr_un local_addr;
 	local_addr.sun_family = AF_UNIX;
@@ -30,14 +30,14 @@ int listen_local(void)
 	socklen_t local_addrlen = sizeof(local_addr);
 
 	r = unlink(local_addr.sun_path);
-	if (r == -1 && errno != ENOENT) cb_eperror(errno);
+	if (r == -1 && errno != ENOENT) return -1;
 	r = bind(local_socket, (struct sockaddr *) &local_addr, local_addrlen);
-	if (r == -1) cb_eperror(errno);
+	if (r == -1) return -1;
 	r = listen(local_socket, SOMAXCONN);
-	if (r == -1) cb_eperror(errno);
+	if (r == -1) return -1;
 
 	char path_buf[PATH_MAX];
-	if (getcwd(path_buf, PATH_MAX) == NULL) cb_eperror(errno);
+	if (getcwd(path_buf, PATH_MAX) == NULL) return -1;
 
 	printf("Listening for local applications on %s/%s\n", path_buf, local_addr.sun_path);
 
@@ -46,12 +46,9 @@ int listen_local(void)
 
 void *app_accept(void *arg)
 {
-	(void) arg;
-	int app_socket = listen_local();
+	pthread_cleanup_push(cleanup_app_accept, arg);
 
-	pthread_cleanup_push(cleanup_app_accept, &app_socket);
-
-	conn_accept_loop(app_socket, app_conn_list, &app_conn_list_mutex, serve_app);
+	conn_accept_loop(*((int *) arg), app_conn_list, &app_conn_list_rwlock, serve_app);
 
 	pthread_cleanup_pop(1);
 
@@ -72,6 +69,7 @@ void cleanup_app_accept(void *arg)
 	// Close and unlink local socket (ignore return value since we're exiting
 	// anyway).
 	close(*local_socket);
+	free(local_socket);
 	unlink(CB_SOCKET);
 }
 

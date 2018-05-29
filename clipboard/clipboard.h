@@ -17,6 +17,7 @@
 struct clean {
 	char **data;
 	struct conn *conn;
+	int *arg;
 };
 
 /* Declare globals */
