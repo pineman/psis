@@ -101,18 +101,7 @@ int clipboard_copy(int clipboard_id, int region, void *buf, size_t count)
 	return (int) r;
 }
 
-/*
- * This function copies from the system to the application the data in a certain region. The copied data is stored in the memory pointed by buf up to a length of count.
- *
- * Arguments:
- * clipboard_id – this argument corresponds to the value returned by clipboard_connect
- * region – This argument corresponds to the identification of the region the user wants to paste data from. This should be a value between 0 and 9.
- * buf – pointer to the data where the data is to be copied to
- * count – the length of memory region pointed by buf.
- *
- * This function returns a positive integer corresponding to the number of bytes copied or 0 in case of error (invalid clipboard_id, invalid region or local clipboard unavailable).
- */
-int clipboard_paste(int clipboard_id, int region, void *buf, size_t count)
+static int do_paste(uint8_t cmd, int clipboard_id, int region, void *buf, size_t count)
 {
 	ssize_t r;
 
@@ -120,7 +109,7 @@ int clipboard_paste(int clipboard_id, int region, void *buf, size_t count)
 	sanity_check(buf, count);
 
 	// Send a paste request (data_size = 0, no data is sent)
-	r = cb_send_msg(clipboard_id, CB_CMD_REQ_PASTE, (uint8_t) region, 0);
+	r = cb_send_msg(clipboard_id, cmd, (uint8_t) region, 0);
 	// return 0 on error, errno is set
 	if (r == -1) return 0;
 	// Fatal error: app tried to send invalid message.
@@ -166,6 +155,22 @@ int clipboard_paste(int clipboard_id, int region, void *buf, size_t count)
 }
 
 /*
+ * This function copies from the system to the application the data in a certain region. The copied data is stored in the memory pointed by buf up to a length of count.
+ *
+ * Arguments:
+ * clipboard_id – this argument corresponds to the value returned by clipboard_connect
+ * region – This argument corresponds to the identification of the region the user wants to paste data from. This should be a value between 0 and 9.
+ * buf – pointer to the data where the data is to be copied to
+ * count – the length of memory region pointed by buf.
+ *
+ * This function returns a positive integer corresponding to the number of bytes copied or 0 in case of error (invalid clipboard_id, invalid region or local clipboard unavailable).
+ */
+int clipboard_paste(int clipboard_id, int region, void *buf, size_t count)
+{
+	return do_paste(CB_CMD_REQ_PASTE, clipboard_id, region, buf, count);
+}
+
+/*
  * This function waits for a change on a certain region (new copy), and when it happens the new data in that region is copied to memory pointed by buf. The copied data is stored in the memory pointed by buf up to a length of count.
  *
  * Arguments:
@@ -176,9 +181,10 @@ int clipboard_paste(int clipboard_id, int region, void *buf, size_t count)
  *
  * This function returns a positive integer corresponding to the number of bytes copied or 0 in case of error (invalid clipboard_id, invalid region or local clipboard unavailable).
 */
-//int clipboard_wait(int clipboard_id, int region, void *buf, size_t count)
-//{
-//}
+int clipboard_wait(int clipboard_id, int region, void *buf, size_t count)
+{
+	return do_paste(CB_CMD_REQ_WAIT, clipboard_id, region, buf, count);
+}
 
 /*
  * This function closes the connection between the application and the local clipboard.

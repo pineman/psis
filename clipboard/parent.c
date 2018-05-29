@@ -17,7 +17,7 @@ void validate_addr(char *addr, char *port, struct sockaddr_in *sockaddr)
 	int r;
 
 	r = inet_pton(AF_INET, addr, (void *) &sockaddr->sin_addr);
-	if (r == 0) {
+ 	if (r == 0) {
 		fprintf(stderr, "Invalid IPv4 address (or not in the form ddd.ddd.ddd.ddd): %s\n", addr);
 		exit(EXIT_FAILURE);
 	}
@@ -109,14 +109,19 @@ void *serve_parent(void *arg)
 
 void cleanup_serve_parent(void *arg)
 {
+	int r;
 	struct clean *clean = (struct clean *) arg;
 	if (*clean->data != NULL) free(*clean->data);
 
-	cb_log("%s", "cancelling parent thread\n");
+	cb_log("%s", "parent cleanup\n");
+	getchar();
 
 	// Parent connection dead, now we are the root.
+	r = pthread_rwlock_wrlock(&parent_conn_rwlock);
+	if (r != 0) cb_eperror(r);
 	conn_destroy(parent_conn);
-	parent_conn = NULL;
 	root = true;
+	parent_conn = NULL;
+	r = pthread_rwlock_unlock(&parent_conn_rwlock);
+	if (r != 0) cb_eperror(r);
 }
-

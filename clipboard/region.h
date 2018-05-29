@@ -1,5 +1,9 @@
 #pragma once
 
+#include <stdbool.h>
+#include <stdint.h>
+#include <pthread.h>
+
 // Region struct
 struct region {
 	char *data; // Always changing on parent read()

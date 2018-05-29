@@ -50,7 +50,7 @@ void *child_accept(void *arg)
 
 	pthread_cleanup_push(cleanup_child_accept, &child_socket);
 
-	conn_accept_loop(child_socket, child_conn_list, &child_conn_list_rwlock, serve_child);
+	conn_accept_loop(child_socket, child_conn_list, &child_conn_list_mutex, serve_child);
 
 	pthread_cleanup_pop(1);
 
@@ -158,6 +158,8 @@ void cleanup_serve_child(void *arg)
 	int r;
 	struct clean *clean = (struct clean *) arg;
 	if (*clean->data != NULL) free(*clean->data);
+
+	cb_log("%s", "child cleanup\n");
 
 	r = conn_remove(clean->conn, &child_conn_list_rwlock);
 	if (r != 0) cb_eperror(r);

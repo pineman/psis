@@ -2,6 +2,7 @@
 
 #include <stdlib.h>
 #include <stdio.h>
+#include <string.h>
 #include <errno.h>
 
 #include <pthread.h>
@@ -36,6 +37,7 @@ extern pthread_rwlock_t app_conn_list_rwlock; // Protects app_conn_list
 extern struct conn *parent_conn;
 // Are we in connected mode or are we the root (i.e. we have no parent)
 extern bool root;
+extern pthread_rwlock_t parent_conn_rwlock; // Protects parent_conn and root
 
 void init_globals(void);
 void free_globals(void);
@@ -44,8 +46,8 @@ void main_cleanup(void *arg);
 
 #define cb_perror(err) do { \
 	char __buf__[1024]; \
-	sprintf(__buf__, "%s:%d %s(), errno = %d", __FILE__, __LINE__-1, __func__, err); \
-	perror(__buf__); \
+	strerror_r(err, __buf__, sizeof(__buf__)); \
+	fprintf(stderr, "\x1B[31m%s:%d %s(), errno = %d %s\n\x1B[0m", __FILE__, __LINE__-1, __func__, err, __buf__); \
 } while(0);
 
 #define cb_eperror(err) do { \

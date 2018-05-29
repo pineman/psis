@@ -1,5 +1,7 @@
 #pragma once
 
+#include <pthread.h>
+
 // Connection struct + doubly-linked list
 struct conn {
 	pthread_t tid;

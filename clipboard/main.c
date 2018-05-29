@@ -31,6 +31,7 @@ pthread_rwlock_t app_conn_list_rwlock; // Protects app_conn_list
 struct conn *parent_conn;
 // Are we in connected mode or are we the root (i.e. we have no parent)
 bool root;
+pthread_rwlock_t parent_conn_rwlock; // Protects parent_conn and root
 
 void init_globals(void)
 {
@@ -50,6 +51,8 @@ void init_globals(void)
 	if (r != 0) cb_eperror(r);
 
 	root = true;
+	r = pthread_rwlock_init(&parent_conn_rwlock, NULL);
+	if (r != 0) cb_eperror(r);
 
 	init_regions();
 }
@@ -61,6 +64,7 @@ void free_globals(void)
 
 	pthread_rwlock_destroy(&child_conn_list_rwlock);
 	pthread_rwlock_destroy(&app_conn_list_rwlock);
+	pthread_rwlock_destroy(&parent_conn_rwlock);
 
 	destroy_regions();
 }
@@ -86,22 +90,27 @@ void main_cleanup(void *arg)
 	(void) arg;
 	int r;
 
+	cb_log("%s", "main cleanup\n");
 	// Cancel and join threads
 	if (!root) {
 		r = pthread_cancel(parent_serve_tid);
 		if (r != 0) cb_eperror(r);
 		r = pthread_join(parent_serve_tid, NULL);
 		if (r != 0) cb_eperror(r);
+		cb_log("%s", "join parent\n");
 	}
+
 	r = pthread_cancel(app_accept_tid);
 	if (r != 0) cb_eperror(r);
-	r = pthread_cancel(child_accept_tid);
-	if (r != 0) cb_eperror(r);
-
 	r = pthread_join(app_accept_tid, NULL);
+	if (r != 0) cb_eperror(r);
+	cb_log("%s", "join app\n");
+
+	r = pthread_cancel(child_accept_tid);
 	if (r != 0) cb_eperror(r);
 	r = pthread_join(child_accept_tid, NULL);
 	if (r != 0) cb_eperror(r);
+	cb_log("%s", "join child\n");
 
 	free_globals();
 }

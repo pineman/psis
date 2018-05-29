@@ -51,7 +51,7 @@ void *app_accept(void *arg)
 
 	pthread_cleanup_push(cleanup_app_accept, &app_socket);
 
-	conn_accept_loop(app_socket, app_conn_list, &app_conn_list_rwlock, serve_app);
+	conn_accept_loop(app_socket, app_conn_list, &app_conn_list_mutex, serve_app);
 
 	pthread_cleanup_pop(1);
 
@@ -92,13 +92,13 @@ void *serve_app(void *arg)
 	while (1)
 	{
 		r = cb_recv_msg(conn->sockfd, &cmd, &region, &data_size);
-		cb_log("[GOT] cmd = %d, region = %d, data_size = %d\n", cmd, region, data_size);
+		//cb_log("[GOT] cmd = %d, region = %d, data_size = %d\n", cmd, region, data_size);
 		if (r == 0) { cb_log("%s", "app disconnect\n"); break; }
 		if (r == -1) { cb_log("recv_msg failed r = %d, errno = %d\n", r, errno); break; }
 		if (r == -2) { cb_log("recv_msg got invalid message r = %d, errno = %d\n", r, errno); break; }
 
 		if (cmd == CB_CMD_COPY) {
-			cb_log("%s", "[GOT] cmd copy\n");
+			//cb_log("%s", "[GOT] cmd copy\n");
 
 			r = do_copy(conn->sockfd, region, data_size, &data, root, false);
 			if (r == false) break; // Terminate connection
@@ -135,6 +135,8 @@ void cleanup_serve_app(void *arg)
 	int r;
 	struct clean *clean = (struct clean *) arg;
 	if (*clean->data != NULL) free(*clean->data);
+
+	cb_log("%s", "app cleanup\n");
 
 	r = conn_remove(clean->conn, &app_conn_list_rwlock);
 	if (r != 0) cb_eperror(r);
