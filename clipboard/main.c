@@ -124,6 +124,19 @@ void main_cleanup(void *arg)
 
 	cb_log("%s", "main cleanup\n");
 	// Cancel and join threads
+	r = pthread_cancel(app_accept_tid);
+	if (r != 0) cb_eperror(r);
+	r = pthread_join(app_accept_tid, NULL);
+	if (r != 0) cb_eperror(r);
+	cb_log("%s", "join app\n");
+	(void) unlink(CB_SOCKET);
+
+	r = pthread_cancel(child_accept_tid);
+	if (r != 0) cb_eperror(r);
+	r = pthread_join(child_accept_tid, NULL);
+	if (r != 0) cb_eperror(r);
+	cb_log("%s", "join child\n");
+
 	if (!root) {
 		r = pthread_cancel(parent_serve_tid);
 		if (r != 0) cb_eperror(r);
@@ -131,18 +144,6 @@ void main_cleanup(void *arg)
 		if (r != 0) cb_eperror(r);
 		cb_log("%s", "join parent\n");
 	}
-
-	r = pthread_cancel(app_accept_tid);
-	if (r != 0) cb_eperror(r);
-	r = pthread_join(app_accept_tid, NULL);
-	if (r != 0) cb_eperror(r);
-	cb_log("%s", "join app\n");
-
-	r = pthread_cancel(child_accept_tid);
-	if (r != 0) cb_eperror(r);
-	r = pthread_join(child_accept_tid, NULL);
-	if (r != 0) cb_eperror(r);
-	cb_log("%s", "join child\n");
 
 	free_globals();
 }

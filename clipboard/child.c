@@ -66,8 +66,8 @@ void cleanup_child_accept(void *arg)
 	if (r != 0) cb_perror(r);
 
 	// Close inet socket
-	close(*inet_socket);
-	free(inet_socket);
+	(void) close(*inet_socket);
+	(void) free(inet_socket);
 }
 
 void *serve_child(void *arg)
@@ -160,7 +160,7 @@ void cleanup_serve_child(void *arg)
 	cb_log("%s", "child cleanup\n");
 
 	r = conn_remove(clean->conn, &child_conn_list_rwlock);
-	if (r != 0) cb_eperror(r);
+	if (r != 0) cb_perror(r);
 
 	conn_destroy(clean->conn);
 }

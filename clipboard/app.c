@@ -68,9 +68,8 @@ void cleanup_app_accept(void *arg)
 
 	// Close and unlink local socket (ignore return value since we're exiting
 	// anyway).
-	close(*local_socket);
-	free(local_socket);
-	unlink(CB_SOCKET);
+	(void) close(*local_socket);
+	(void) free(local_socket);
 }
 
 // Serve one app connection
@@ -137,7 +136,7 @@ void cleanup_serve_app(void *arg)
 	cb_log("%s", "app cleanup\n");
 
 	r = conn_remove(clean->conn, &app_conn_list_rwlock);
-	if (r != 0) cb_eperror(r);
+	if (r != 0) cb_perror(r);
 
 	conn_destroy(clean->conn);
 }

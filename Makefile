@@ -6,7 +6,7 @@ CFLAGS+=-Wall -Wextra -Wpedantic -Wunused-result -Wunreachable-code
 CFLAGS+=-O3
 #CFLAGS+=-g -Og
 #CFLAGS+=-pg
-#CFLAGS+=-DCB_DBG
+CFLAGS+=-DCB_DBG
 CFLAGS+=-fdiagnostics-color=always -march=native
 #CXXFLAGS=$(CFLAGS)
 CPPFLAGS=-I cb_common -I library -D_POSIX_C_SOURCE="200809L"
@@ -16,10 +16,11 @@ SRCDIR=.
 SRC=$(shell find $(SRCDIR) -name "*.c" -not -path "./.vscode/*" | cut -d"/" -f2-)
 
 # Define executables and their link dependencies here
-EXECS = clipboard/clipboard apps/copy apps/paste
+EXECS = clipboard/clipboard apps/copy apps/paste apps/wait
 clipboard/clipboard_DEPS=$(shell find cb_common clipboard -type f -name "*.c")
 apps/copy_DEPS=$(shell find cb_common library -type f -name "*.c") apps/copy.c
 apps/paste_DEPS=$(shell find cb_common library -type f -name "*.c") apps/paste.c
+apps/wait_DEPS=$(shell find cb_common library -type f -name "*.c") apps/wait.c
 
 ###############################################################################
 # No more user editing is needed below
@@ -46,7 +47,7 @@ $(OBJDIR)/%.o: %.c
 all: $(EXECS)
 
 clean:
-	rm -rf $(OBJDIR) $(EXECS)
+	rm -rf $(OBJDIR) $(EXECS) compile_commands.json
 
 remake:
 	$(MAKE) clean

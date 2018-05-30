@@ -71,35 +71,25 @@ bool do_copy(int sockfd, uint8_t region, uint32_t data_size, char **data, bool c
 void copy_to_parent(uint8_t region, uint32_t data_size, char *data)
 {
 	int r;
-	bool success;
-
-	r = pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, NULL);
-	if (r != 0) cb_eperror(r);
 
 	// Critical section: Writing to the parent socket
+	r = pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, NULL);
+	if (r != 0) cb_eperror(r);
 	r = pthread_rwlock_rdlock(&parent_conn_rwlock);
 	if (r != 0) cb_eperror(r);
-	if (root) { cb_perror(2); return; } // TODO: parent dead!
+	if (root) return; // Parent died between call to do_copy and now!
 	r = pthread_mutex_lock(&parent_conn->mutex);
 	if (r != 0) cb_eperror(r);
 
-	success = cb_send_msg_data(parent_conn->sockfd, CB_CMD_COPY, region, data_size, data);
-	cb_log("[SENT] cmd = %d, region = %d, data_size = %d, data = %s\n", CB_CMD_COPY, region, data_size, data);
-	cb_log("success = %d, errno = %d\n", success, errno);
+	// Try to send update to parent. Ignore if it fails - if the connection to the parent died,
+	// it will be cancelled once it eventually returns to its receive loop.
+	(void) cb_send_msg_data(parent_conn->sockfd, CB_CMD_COPY, region, data_size, data);
 
-	// End Critical section: Unlock the parent socket
+	// End Critical section: unlock parent socket
 	r = pthread_mutex_unlock(&parent_conn->mutex);
 	if (r != 0) cb_eperror(r);
 	r = pthread_rwlock_unlock(&parent_conn_rwlock);
 	if (r != 0) cb_eperror(r);
-
-	if (!success) {
-		r = pthread_detach(parent_serve_tid);
-		if (r != 0) cb_eperror(r);
-		r = pthread_cancel(parent_serve_tid); // Will destroy the connection
-		if (r != 0) cb_eperror(r);
-	}
-
 	r = pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
 	if (r != 0) cb_eperror(r);
 }
@@ -147,46 +137,29 @@ void copy_to_children(uint8_t region)
 
 	// Send to all children
 	struct conn *child_conn = child_conn_list->next;
-	bool success;
-	pthread_t tid;
 	while (child_conn != NULL) {
 		// Critical section: Writing to a child socket
 		r = pthread_mutex_lock(&child_conn->mutex);
 		if (r != 0) cb_eperror(r);
 
-		success = cb_send_msg_data(child_conn->sockfd, CB_CMD_COPY, region, data_size, data);
+		// Try to send update to child. Ignore if it fails - if the connection to that child died,
+		// it will be cancelled once it eventually returns to its receive loop.
+		(void) cb_send_msg_data(child_conn->sockfd, CB_CMD_COPY, region, data_size, data);
 		cb_log("[SENT] cmd = %d, region = %d, data_size = %d, data = %s\n", CB_CMD_COPY, region, data_size, data);
-		cb_log("success = %d, errno = %d\n", success, errno);
 
 		// End Critical section: Unlock the child socket
 		r = pthread_mutex_unlock(&child_conn->mutex);
 		if (r != 0) cb_eperror(r);
 
-		tid = child_conn->tid;
 		child_conn = child_conn->next;
-		// TODO: maybe can be joined with some other function
-		if (!success) {
-			// Cancel the child's connection thread. Unlock our lock on
-			// child_conn_list to allow the child's thread to die and cleanup.
-			r = pthread_rwlock_unlock(&child_conn_list_rwlock);
-			if (r != 0) cb_eperror(r);
-
-			r = pthread_detach(tid);
-			if (r != 0) cb_eperror(r);
-			r = pthread_cancel(tid); // Will remove and destroy the connection
-			if (r != 0) cb_eperror(r);
-
-			// Continue looping
-			r = pthread_rwlock_rdlock(&child_conn_list_rwlock);
-			if (r != 0) cb_eperror(r);
-		}
 	}
 
 	// End Critical section: Unlock regions[region] and child_conn_list
-	r = pthread_rwlock_unlock(&regions[region].rwlock);
-	if (r != 0) cb_eperror(r);
 	r = pthread_rwlock_unlock(&child_conn_list_rwlock);
 	if (r != 0) cb_eperror(r);
+	r = pthread_rwlock_unlock(&regions[region].rwlock);
+	if (r != 0) cb_eperror(r);
+
 	r = pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
 	if (r != 0) cb_eperror(r);
 }

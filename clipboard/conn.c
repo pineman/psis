@@ -31,19 +31,12 @@ void conn_destroy(struct conn *conn)
 	free(conn);
 }
 
-// Safely append to a conn_list
-int conn_append(struct conn *head, struct conn *new, pthread_rwlock_t *rwlock)
+// Append to a conn_list
+void conn_append(struct conn *head, struct conn *new)
 {
 	assert(head != NULL);
 	assert(head->prev == NULL);
 	assert(new != NULL);
-
-	int r;
-
-	r = pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, NULL);
-	if (r != 0) return r;
-	r = pthread_rwlock_wrlock(rwlock);
-	if (r != 0) return r;
 
 	// Prev (might be NULL if list is empty)
 	struct conn *old = head->next;
@@ -52,36 +45,6 @@ int conn_append(struct conn *head, struct conn *new, pthread_rwlock_t *rwlock)
 	// Next (is new)
 	head->next = new;
 	new->prev = head;
-
-	r = pthread_rwlock_unlock(rwlock);
-	if (r != 0) return r;
-	r = pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
-	if (r != 0) return r;
-
-	return 0;
-}
-
-// Safely remove from a conn_list
-int conn_remove(struct conn *rm, pthread_rwlock_t *rwlock)
-{
-	assert(rm != NULL);
-
-	int r;
-
-	r = pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, NULL);
-	if (r != 0) return r;
-	r = pthread_rwlock_wrlock(rwlock);
-	if (r != 0) return r;
-
-	if (rm->next) rm->next->prev = rm->prev;
-	if (rm->prev) rm->prev->next = rm->next;
-
-	r = pthread_rwlock_unlock(rwlock);
-	if (r != 0) return r;
-	r = pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
-	if (r != 0) return r;
-
-	return 0;
 }
 
 void conn_accept_loop(int server, struct conn *head, pthread_rwlock_t *rwlock, void *(*handle_conn)(void *))
@@ -90,7 +53,9 @@ void conn_accept_loop(int server, struct conn *head, pthread_rwlock_t *rwlock, v
 
 	while (1) {
 		int client = accept(server, NULL, 0);
-		if (client == -1) goto cont;
+		if (client == -1) { r = errno; goto cont; }
+
+		(void) pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, NULL);
 
 		struct conn *conn = NULL;
 		r = conn_new(&conn, client);
@@ -99,14 +64,20 @@ void conn_accept_loop(int server, struct conn *head, pthread_rwlock_t *rwlock, v
 		r = pthread_create(&conn->tid, NULL, handle_conn, conn);
 		if (r != 0) goto cont_conn;
 
-		r = conn_append(head, conn, rwlock);
-		if (r != 0) cb_eperror(r);
+		r = pthread_rwlock_wrlock(rwlock);
+		if (r != 0) goto cont_conn;
+		conn_append(head, conn);
+		r = pthread_rwlock_unlock(rwlock);
+		assert(r == 0);
+
+		(void) pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
+
 		continue;
 
 	cont_conn:
 		conn_destroy(conn);
 	cont:
-		cb_perror(errno);
+		cb_perror(r);
 	}
 }
 
@@ -124,8 +95,8 @@ int conn_cancel_all(struct conn *head, pthread_rwlock_t *rwlock)
 		r = pthread_rwlock_unlock(rwlock);
 		if (r != 0) return r;
 		if (conn == NULL) break;
-		t = conn->tid;
 
+		t = conn->tid;
 		r = pthread_cancel(t);
 		if (r != 0) return r;
 		r = pthread_join(t, NULL);
@@ -135,6 +106,26 @@ int conn_cancel_all(struct conn *head, pthread_rwlock_t *rwlock)
 	return 0;
 }
 
+// Safely remove from a conn_list
+int conn_remove(struct conn *rm, pthread_rwlock_t *rwlock)
+{
+	assert(rm != NULL);
+	int r;
+
+	r = pthread_rwlock_wrlock(rwlock);
+	if (r != 0) return r;
+
+	if (rm->next) rm->next->prev = rm->prev;
+	if (rm->prev) rm->prev->next = rm->next;
+
+	r = pthread_rwlock_unlock(rwlock);
+	if (r != 0) return r;
+
+	return 0;
+}
+
+
+// TODO
 //void conn_print(struct conn *head)
 //{
 //	int i = 0;

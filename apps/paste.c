@@ -21,7 +21,7 @@ int main(int argc, char *argv[])
 	int j = 0;
 	while (1) {
 		for (int i = 0; i < 10; i++ ) {
-			r = clipboard_paste(cb, i, buf, 4);
+			r = clipboard_paste(cb, i, buf, sizeof(buf));
 			if (r == 0) { mperror(errno); break; }
 			printf("%d \"%s\" %d\n", i, buf, j++);
 			//sleep(1);

@@ -116,9 +116,9 @@ void cleanup_serve_parent(void *arg)
 
 	cb_log("%s", "parent cleanup\n");
 
-	// Parent connection dead, now we are the root.
 	r = pthread_rwlock_wrlock(&parent_conn_rwlock);
 	if (r != 0) cb_eperror(r);
+	// Parent connection dead, now we are the root.
 	conn_destroy(parent_conn);
 	root = true;
 	parent_conn = NULL;
