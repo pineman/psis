@@ -3,8 +3,8 @@ CC=clang
 CFLAGS=-std=c11 -pthread
 CFLAGS+=-Wall -Wextra -Wpedantic -Wunused-result -Wunreachable-code
 #CFLAGS=-Weverything
-CFLAGS+=-O3
-#CFLAGS+=-g -Og
+#CFLAGS+=-O3
+CFLAGS+=-g -Og
 #CFLAGS+=-pg
 CFLAGS+=-DCB_DBG
 CFLAGS+=-fdiagnostics-color=always -march=native

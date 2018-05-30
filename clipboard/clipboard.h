@@ -42,7 +42,8 @@ extern pthread_rwlock_t parent_conn_rwlock; // Protects parent_conn and root
 
 void init_globals(void);
 void free_globals(void);
-void create_threads(char *argv[]);
+void listen_sockets(char *argv[]);
+void create_threads(int *parent_socket, int *children_socket, int *app_socket);
 void main_cleanup(void *arg);
 
 #define cb_perror(err) do { \

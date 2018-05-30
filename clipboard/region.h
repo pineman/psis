@@ -9,6 +9,8 @@ struct region {
 	char *data; // Always changing on parent read()
 	uint32_t data_size;
 	pthread_rwlock_t rwlock; // Protects `data` and `data_size`
+	pthread_cond_t update_cond;
+	pthread_mutex_t update_mutex;
 };
 
 void init_regions(void);

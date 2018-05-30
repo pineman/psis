@@ -4,6 +4,7 @@
 
 #include "clipboard.h"
 #include "region.h"
+#include "utils.h"
 
 // Initialize regions
 void init_regions(void)
@@ -15,6 +16,10 @@ void init_regions(void)
 		regions[i].data[0] = '\0';
 		regions[i].data_size = 1;
 		r = pthread_rwlock_init(&regions[i].rwlock, NULL);
+		if (r != 0) cb_eperror(r);
+		r = init_mutex(&regions[i].update_mutex);
+		if (r != 0) cb_eperror(r);
+		r = pthread_cond_init(&regions[i].update_cond, NULL);
 		if (r != 0) cb_eperror(r);
 	}
 }
@@ -106,11 +111,13 @@ void update_region(uint8_t region, uint32_t data_size, char **data)
 
 	free(regions[region].data);
 	regions[region].data = *data;
-	*data = NULL; // don't double free
+	*data = NULL; // don't double free inside cleanup handler
 	regions[region].data_size = data_size;
 
 	// End Critical section: unlock region
 	r = pthread_rwlock_unlock(&regions[region].rwlock);
+	if (r != 0) cb_eperror(r);
+	r = pthread_cond_broadcast(&regions[region].update_cond);
 	if (r != 0) cb_eperror(r);
 	r = pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
 	if (r != 0) cb_eperror(r);

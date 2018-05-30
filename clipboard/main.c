@@ -69,41 +69,48 @@ void free_globals(void)
 	destroy_regions();
 }
 
-void create_threads(char *argv[])
+void listen_sockets(char *argv[])
 {
-	int r;
-
 	int *parent_socket;
 	if (!root) {
 		parent_socket = malloc(sizeof(int));
 		*parent_socket = connect_parent(argv[2], argv[3]);
 		if (*parent_socket == -1) {
-			free(parent_socket);
 			fprintf(stderr, "Error connecting to parent.\n");
-			cb_perror(errno);
-			exit(EXIT_FAILURE);
+			goto parent_out;
 		}
 	}
 	int *children_socket = malloc(sizeof(int));
 	*children_socket = listen_child();
 	if (*children_socket == -1) {
-		free(parent_socket);
-		free(children_socket);
 		fprintf(stderr, "Error listening for child clipboards.\n");
-		cb_perror(errno);
-		exit(EXIT_FAILURE);
+		goto child_out;
 	}
 	int *app_socket = malloc(sizeof(int));
 	*app_socket = listen_local();
 	if (*app_socket == -1) {
-		free(parent_socket);
-		free(children_socket);
-		free(app_socket);
 		fprintf(stderr, "Error listening for local applications.\n");
-		cb_perror(errno);
-		exit(EXIT_FAILURE);
+		goto app_out;
 	}
 
+	create_threads(parent_socket, children_socket, app_socket);
+	return;
+
+app_out:
+	free(app_socket);
+child_out:
+	free(children_socket);
+parent_out:
+	free(parent_socket);
+
+	cb_perror(errno);
+	free_globals();
+	exit(EXIT_FAILURE);
+}
+
+void create_threads(int *parent_socket, int *children_socket, int *app_socket)
+{
+	int r;
 	// Create thread for parent connection (if needed)
 	if (!root) {
 		r = pthread_create(&parent_serve_tid, NULL, serve_parent, parent_socket);
@@ -175,7 +182,7 @@ int main(int argc, char *argv[])
 	if (r == -1) { cb_perror(r); exit(EXIT_FAILURE); }
 
 	// Create parent, app & child listening threads
-	create_threads(argv);
+	listen_sockets(argv);
 
 	pthread_cleanup_push(main_cleanup, NULL);
 

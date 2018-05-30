@@ -111,6 +111,12 @@ void *serve_app(void *arg)
 			cb_log("%s", "[GOT] cmd req_wait\n");
 			if (data_size != 0) { cb_log("%s", "got data_size != 0\n"); break; }
 
+			r = pthread_mutex_lock(&regions[region].update_mutex);
+			if (r != 0) cb_eperror(r);
+			r = pthread_cond_wait(&regions[region].update_cond, &regions[region].update_mutex);
+			if (r != 0) cb_eperror(r);
+			r = pthread_mutex_unlock(&regions[region].update_mutex);
+			if (r != 0) cb_eperror(r);
 			r = paste_region_app(region, conn->sockfd);
 			if (r == false) break; // Terminate connection
 		}
