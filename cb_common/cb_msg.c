@@ -86,7 +86,6 @@ ssize_t cb_recv(int sockfd, void *buf, size_t len)
 		nleft -= nread;
 		ptr += nread;
 	}
-	if ((size_t) nread < len) return 0;
 	return len;
 }
 

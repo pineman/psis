@@ -73,11 +73,12 @@ void create_threads(char *argv[])
 {
 	int r;
 
-	int *parent_socket; 
+	int *parent_socket;
 	if (!root) {
 		parent_socket = malloc(sizeof(int));
 		*parent_socket = connect_parent(argv[2], argv[3]);
 		if (*parent_socket == -1) {
+			free(parent_socket);
 			fprintf(stderr, "Error connecting to parent.\n");
 			cb_perror(errno);
 			exit(EXIT_FAILURE);
@@ -86,6 +87,8 @@ void create_threads(char *argv[])
 	int *children_socket = malloc(sizeof(int));
 	*children_socket = listen_child();
 	if (*children_socket == -1) {
+		free(parent_socket);
+		free(children_socket);
 		fprintf(stderr, "Error listening for child clipboards.\n");
 		cb_perror(errno);
 		exit(EXIT_FAILURE);
@@ -93,6 +96,9 @@ void create_threads(char *argv[])
 	int *app_socket = malloc(sizeof(int));
 	*app_socket = listen_local();
 	if (*app_socket == -1) {
+		free(parent_socket);
+		free(children_socket);
+		free(app_socket);
 		fprintf(stderr, "Error listening for local applications.\n");
 		cb_perror(errno);
 		exit(EXIT_FAILURE);

@@ -82,6 +82,7 @@ void *serve_parent(void *arg)
 
 		// Can only receive copy from parent. Terminate connection if not
 		if (cmd != CB_CMD_COPY) {
+			cb_log("%s", "cmd != CB_CMD_COPY\n");
 			break;
 		}
 
@@ -93,7 +94,7 @@ void *serve_parent(void *arg)
 
 		// Parent has sent us a copy: update regions and send to children.
 		r = do_copy(parent_conn->sockfd, region, data_size, &data, true, initial);
-		if (r == false) break; // Terminate connection
+		if (r == false) { cb_log("%s", "parent died\n"); break; }// Terminate connection
 	}
 
 	// Make thread non-joinable: no one will join() us because we need to die

@@ -3,9 +3,10 @@ CC=clang
 CFLAGS=-std=c11 -pthread
 CFLAGS+=-Wall -Wextra -Wpedantic -Wunused-result -Wunreachable-code
 #CFLAGS=-Weverything
-#CFLAGS+=-O3 -DCB_DBG
-CFLAGS+=-g -Og -DCB_DBG
+CFLAGS+=-O3
+#CFLAGS+=-g -Og
 #CFLAGS+=-pg
+#CFLAGS+=-DCB_DBG
 CFLAGS+=-fdiagnostics-color=always -march=native
 #CXXFLAGS=$(CFLAGS)
 CPPFLAGS=-I cb_common -I library -D_POSIX_C_SOURCE="200809L"

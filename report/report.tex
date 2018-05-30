@@ -210,12 +210,6 @@ Additionally, all connection structures contain a mutex (as seen in Listing \ref
 Some errors are fatal, while others are not. For example, any connection error during the \texttt{accept} loops, are printed but otherwise ignored, to keep the server accepting connections. What errors were considered to be fatal or not are easily recognizable in the source code by the use of the macro \texttt{cb\_eperror} (exit and perror) vs.\ the macro \texttt{cb\_perror}, which only prints the error. Additionally, fatal errors which demonstrate a completely unknown state are handled using the \texttt{assert} function.
 \par
 Errors during \texttt{read} or \texttt{write} calls are handled by canceling the corresponding connection thread. The cleanup handlers then free all the resources and delete the connection from the appropriate list. The result is that the clipboard server, on all tests performed, is \texttt{valgrind}-clean and exits gracefully.
-\begin{figure}[h]
-	\centering
-	\includegraphics[width=0.6\linewidth]{untitled.eps}
-	\caption{An example figure}
-	\label{fig:figure-example}
-\end{figure}
 
 %\begin{figure}[h]
 %	\centering
