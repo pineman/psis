@@ -30,7 +30,6 @@ int main(int argc, char *argv[])
 	if (cb == -1) emperror(errno);
 
 	char buf[100];
-	struct timespec t = { .tv_sec = 1, .tv_nsec = 0 };
 
 	while (repetitions != 0) {
 		for (int i = 0; i < 10; i++ ) {
