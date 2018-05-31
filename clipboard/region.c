@@ -30,6 +30,8 @@ void destroy_regions(void)
 	for (int i = 0; i < CB_NUM_REGIONS; i++) {
 		free(regions[i].data);
 		pthread_rwlock_destroy(&regions[i].rwlock);
+		pthread_mutex_destroy(&regions[i].update_mutex);
+		pthread_cond_destroy(&regions[i].update_cond);
 	}
 }
 

@@ -5,6 +5,7 @@
 #include <errno.h>
 
 #include <sys/time.h>
+#include <sys/types.h>
 #include <sys/socket.h>
 
 #include "cb_common.h"
@@ -17,17 +18,16 @@
 int cb_setsockopt(int sockfd)
 {
 	int r;
+	int set = 1;
 
 #ifdef SO_NOSIGPIPE
 	//	Make sure that SIGPIPE signal is not generated when writing to a
 	//	connection that was already closed by the peer.
-	int set = 1;
 	r = setsockopt(sockfd, SOL_SOCKET, SO_NOSIGPIPE, &set, sizeof(int));
 	if (r == -1) return -1;
 #endif
 
 #ifdef SO_REUSEPORT
-	int set = 1;
 	r = setsockopt(sockfd, SOL_SOCKET, SO_REUSEPORT, &set, sizeof(int));
 	if (r == -1) return -1;
 #endif
