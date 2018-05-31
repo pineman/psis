@@ -75,7 +75,7 @@ void *serve_parent(void *arg)
 	while (1)
 	{
 		r = cb_recv_msg(parent_conn->sockfd, &cmd, &region, &data_size);
-		cb_log("[GOT] cmd = %d, region = %d, data_size = %d\n", cmd, region, data_size);
+		cb_log("[GOT] cmd = %u, region = %u, data_size = %u\n", cmd, region, data_size);
 		if (r == 0) { cb_log("%s", "parent disconnect\n"); break; }
 		if (r == -1) { cb_log("recv_msg failed r = %d, errno = %d\n", r, errno); break; }
 		if (r == -2) { cb_log("recv_msg got invalid message r = %d, errno = %d\n", r, errno); break; }
@@ -93,7 +93,7 @@ void *serve_parent(void *arg)
 			initial = false;
 
 		// Parent has sent us a copy: update regions and send to children.
-		r = do_copy(parent_conn->sockfd, region, data_size, &data, true, initial);
+		r = do_copy(parent_conn->sockfd, region, data_size, &data, true, initial, false);
 		if (r == false) { cb_log("%s", "parent died\n"); break; }// Terminate connection
 	}
 

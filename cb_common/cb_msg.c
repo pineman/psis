@@ -16,13 +16,19 @@
 //	0 on success
 int cb_setsockopt(int sockfd)
 {
-	(void) sockfd;
+	int r;
 
 #ifdef SO_NOSIGPIPE
 	//	Make sure that SIGPIPE signal is not generated when writing to a
 	//	connection that was already closed by the peer.
 	int set = 1;
 	r = setsockopt(sockfd, SOL_SOCKET, SO_NOSIGPIPE, &set, sizeof(int));
+	if (r == -1) return -1;
+#endif
+
+#ifdef SO_REUSEPORT
+	int set = 1;
+	r = setsockopt(sockfd, SOL_SOCKET, SO_REUSEPORT, &set, sizeof(int));
 	if (r == -1) return -1;
 #endif
 
@@ -164,7 +170,7 @@ ssize_t cb_recv_msg(int clipboard_id, uint8_t *cmd, uint8_t *region, uint32_t *d
 	// region (1 byte)
 	*region = msg[1];
 	// data_size (4 bytes)
-	*data_size = ((uint32_t) *(msg+1+1));
+	*data_size = *((uint32_t *) (msg+1+1));
 	return r;
 }
 

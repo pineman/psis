@@ -19,6 +19,8 @@ int listen_child(void)
 	int child_socket;
 	child_socket = socket(AF_INET, SOCK_STREAM, 0);
 	if (child_socket == -1) return -1;
+	r = cb_setsockopt(child_socket);
+	if (r == -1) return -1;
 
 	struct sockaddr_in local_addr;
 	local_addr.sin_family = AF_INET;
@@ -101,7 +103,7 @@ void *serve_child(void *arg)
 		data = regions[i].data;
 
 		success = cb_send_msg_data(conn->sockfd, CB_CMD_COPY, i, data_size, data);
-		cb_log("[SENT] cmd = %d, region = %d, data_size = %d, data = %s\n", CB_CMD_COPY, i, data_size, data);
+		cb_log("[SENT] cmd = %u, region = %u, data_size = %u, data = %s\n", CB_CMD_COPY, i, data_size, data);
 
 		// End Critical section: Unlock regions[i]
 		r = pthread_rwlock_unlock(&regions[i].rwlock);
@@ -125,7 +127,7 @@ void *serve_child(void *arg)
 	while (1)
 	{
 		r = cb_recv_msg(conn->sockfd, &cmd, &region, &data_size);
-		cb_log("[GOT] cmd = %d, region = %d, data_size = %d\n", cmd, region, data_size);
+		cb_log("[GOT] cmd = %u, region = %u, data_size = %u\n", cmd, region, data_size);
 		if (r == 0) { cb_log("%s", "child disconnect\n"); break; }
 		if (r == -1) { cb_log("recv_msg failed r = %d, errno = %d\n", r, errno); break; }
 		if (r == -2) { cb_log("recv_msg got invalid message r = %d, errno = %d\n", r, errno); break; }
@@ -135,7 +137,7 @@ void *serve_child(void *arg)
 			break;
 		}
 
-		r = do_copy(conn->sockfd, region, data_size, &data, root, false);
+		r = do_copy(conn->sockfd, region, data_size, &data, root, false, false);
 		if (r == false) break; // Terminate connection
 	}
 

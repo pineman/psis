@@ -89,7 +89,7 @@ void *serve_app(void *arg)
 	while (1)
 	{
 		r = cb_recv_msg(conn->sockfd, &cmd, &region, &data_size);
-		cb_log("[GOT] cmd = %d, region = %d, data_size = %d\n", cmd, region, data_size);
+		cb_log("[GOT] cmd = %u, region = %u, data_size = %u\n", cmd, region, data_size);
 		if (r == 0) { cb_log("%s", "app disconnect\n"); break; }
 		if (r == -1) { cb_log("recv_msg failed r = %d, errno = %d\n", r, errno); break; }
 		if (r == -2) { cb_log("recv_msg got invalid message r = %d, errno = %d\n", r, errno); break; }
@@ -97,7 +97,7 @@ void *serve_app(void *arg)
 		if (cmd == CB_CMD_COPY) {
 			cb_log("%s", "[GOT] cmd copy\n");
 
-			r = do_copy(conn->sockfd, region, data_size, &data, root, false);
+			r = do_copy(conn->sockfd, region, data_size, &data, root, false, true);
 			if (r == false) break; // Terminate connection
 		}
 		else if (cmd == CB_CMD_REQ_PASTE) {
@@ -147,4 +147,3 @@ void cleanup_serve_app(void *arg)
 
 	conn_destroy(clean->conn);
 }
-
