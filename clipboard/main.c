@@ -16,7 +16,10 @@
 #include "parent.h"
 
 /* Globals */
-pthread_t main_tid, parent_serve_tid, app_accept_tid, child_accept_tid;
+pthread_t main_tid;
+pthread_t parent_serve_tid;
+static pthread_t app_accept_tid, child_accept_tid;
+
 // Global array of regions
 struct region regions[CB_NUM_REGIONS];
 
@@ -71,7 +74,7 @@ void free_globals(void)
 
 void listen_sockets(char *argv[])
 {
-	int *parent_socket;
+	int *parent_socket = NULL;
 	if (!root) {
 		parent_socket = malloc(sizeof(int));
 		*parent_socket = connect_parent(argv[2], argv[3]);
@@ -112,7 +115,7 @@ void create_threads(int *parent_socket, int *children_socket, int *app_socket)
 {
 	int r;
 	// Create thread for parent connection (if needed)
-	if (!root) {
+	if (parent_socket != NULL && *parent_socket != -1) {
 		r = pthread_create(&parent_serve_tid, NULL, serve_parent, parent_socket);
 		if (r != 0) cb_eperror(r);
 	}

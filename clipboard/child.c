@@ -83,7 +83,7 @@ void *serve_child(void *arg)
 	struct clean clean = {.data = &data, .conn = conn};
 	pthread_cleanup_push(cleanup_serve_child, &clean);
 
-	// TODO
+	// Initial synchronization
 	// Critical section: Writing to child socket
 	r = pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, NULL);
 	if (r != 0) cb_eperror(r);
@@ -91,20 +91,20 @@ void *serve_child(void *arg)
 	if (r != 0) cb_eperror(r);
 
 	bool success;
-	for (int region = 0; region < CB_NUM_REGIONS; region++)
+	for (int i = 0; i < CB_NUM_REGIONS; i++)
 	{
 		// Critical section: reading from region
-		r = pthread_rwlock_rdlock(&regions[region].rwlock);
+		r = pthread_rwlock_rdlock(&regions[i].rwlock);
 		if (r != 0) cb_eperror(r);
 
-		data_size = regions[region].data_size;
-		data = regions[region].data;
+		data_size = regions[i].data_size;
+		data = regions[i].data;
 
-		success = cb_send_msg_data(conn->sockfd, CB_CMD_COPY, region, data_size, data);
-		cb_log("[SENT] cmd = %d, region = %d, data_size = %d, data = %s\n", CB_CMD_COPY, region, data_size, data);
+		success = cb_send_msg_data(conn->sockfd, CB_CMD_COPY, i, data_size, data);
+		cb_log("[SENT] cmd = %d, region = %d, data_size = %d, data = %s\n", CB_CMD_COPY, i, data_size, data);
 
-		// End Critical section: Unlock regions[region]
-		r = pthread_rwlock_unlock(&regions[region].rwlock);
+		// End Critical section: Unlock regions[i]
+		r = pthread_rwlock_unlock(&regions[i].rwlock);
 		if (r != 0) cb_eperror(r);
 
 		if (!success) break;

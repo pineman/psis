@@ -101,8 +101,10 @@ The goal of this project was to implement a distributed clipboard and an applica
 	.2 apps/.
 	.3 copy.c.
 	.3 paste.c.
-	.3 paste.
+	.3 wait.c.
 	.3 copy.
+	.3 paste.
+	.3 wait.
 	.2 cb\_common/.
 	.3 cb\_common.h \tabto*{3cm} \# common macros between library and clipboard .
 	.3 cb\_msg.h.
@@ -172,9 +174,9 @@ struct conn {
 \par
 The clipboard creates several threads to handle many connections:
 \begin{itemize}
-	\item One thread blocking on \texttt{accept} on the local unix domain socket, waiting for local application connections
+	\item One thread blocking on \texttt{accept} on the local UNIX domain socket, waiting for local application connections
 	\item One thread for each local application connection
-	\item One thread blocking on \texttt{accept} on the remote inet socket, waiting for remote children clipboard connections
+	\item One thread blocking on \texttt{accept} on the remote INET socket, waiting for remote children clipboard connections
 	\item One thread for each remote child clipboard connection
 	\item One thread for the parent connection, if the clipboard was started in connected mode
 	\item The main thread blocks most signals and creates the connection accept threads. Then it synchronously waits for signals and handles them (e.g., on \texttt{SIGINT}, the main thread exits and during its cleanup handler cancels and joins the rest of the active threads)
@@ -196,20 +198,26 @@ Global variables, declared in \texttt{clipboard.h}, are shared between threads. 
 	\item \mint{c}|struct conn *app_conn_list;|
 	\item \mint{c}|pthread_rwlock_t app_conn_list_rwlock; // Protects app_conn_list|
 	      The list of app connections, and respective read-write lock, while not used directly by other threads, it is used when canceling all ongoing connections on clipboard exit, during \texttt{cleanup\_app\_accept} (this is also true for the child connections, in the respective accept cleanup routine). Also, when a new app connection is accepted in \texttt{app\_accept}, the list is updated.
+	\item \mint{c}|pthread_rwlock_t parent_conn_rwlock; // Protects parent_conn and root|
 	\item \mint{c}|struct conn *parent_conn;|
 	\item \mint{c}|bool root;|
-	      The parent connection is used by app and connection threads, during \texttt{copy\_to\_parent}. Although the \texttt{root} boolean is shared between threads, it is only potentially modified once by the parent thread. Since it's just an integer variable, no synchronization (mutex/rwlock) is needed.
+	  The parent connection and the \texttt{root} are used by app and connection threads, during \texttt{on\_copy()} \texttt{(copy\-\_to\_parent)}, and as such must be protected by \texttt{parent\_conn\_rwlock}, to prevent race conditions when the parent thread is canceled.
+	Although the \texttt{root} boolean is shared between threads, it is only potentially modified once by the parent thread. Since it's just an integer variable, no synchronization is needed.
 \end{itemize}
 \par
 Additionally, all connection structures contain a mutex (as seen in Listing \ref{list:conn}) so that only one thread can write to a socket at a time, to prevent interleaving.
 
 \section{Replication}
+\par
+In order to replicate regions across clipboard servers, we first note the network is in general a tree with a single root as in <le tree ref?>. When a copy request by an app or another child is received by the clipboard, it forwards the request to its parent, without copying it to its local regions. When the root clipboard receives a copy request, it updates its regions and sends it to its children. When a clipboard receives a copy from its parent, it also updates its regions and sends propagates it down to its children. In this way, updates are serialized by the root, taking advantage of the fact TCP guarantees ordered data transfer, and the whole network is not left in an incoherent state (excluding the propagation times).
 
 \section{Error Handling}
 \par
 Some errors are fatal, while others are not. For example, any connection error during the \texttt{accept} loops, are printed but otherwise ignored, to keep the server accepting connections. What errors were considered to be fatal or not are easily recognizable in the source code by the use of the macro \texttt{cb\_eperror} (exit and perror) vs.\ the macro \texttt{cb\_perror}, which only prints the error. Additionally, fatal errors which demonstrate a completely unknown state are handled using the \texttt{assert} function.
 \par
 Errors during \texttt{read} or \texttt{write} calls are handled by canceling the corresponding connection thread. The cleanup handlers then free all the resources and delete the connection from the appropriate list. The result is that the clipboard server, on all tests performed, is \texttt{valgrind}-clean and exits gracefully.
+\par
+On exit, the main thread \texttt{cancel()}s and \texttt{join()}s the parent and the two \texttt{accept} threads. These two in turn \texttt{cancel()} all ongoing child and app threads. In addition, when an app, child or the parent connection dies, the corresponding thread is \texttt{detach()}ed and cleaned up. Although during the \texttt{copy} command (\texttt{on\_copy()} function) the parent and child connections are potentially written to and the connections may fail, they are never canceled there, as those connections will eventually return to their normal \texttt{recv()} loop, and will \texttt{detach()} themselves as explained above.
 
 %\begin{figure}[h]
 %	\centering

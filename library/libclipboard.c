@@ -128,9 +128,8 @@ static int do_paste(uint8_t cmd, int clipboard_id, int region, void *buf, size_t
 	assert(resp_region == region);
 	assert(resp_cmd == CB_CMD_PASTE);
 
-	// TODO: should the server send everything or just `count` bytes?
 	char *resp_data = malloc(resp_data_size);
-	if (resp_data == NULL) exit(1); // TODO
+	if (resp_data == NULL) return 0;
 	// Get clipboard data
 	r = cb_recv(clipboard_id, (void *) resp_data, resp_data_size);
 	if (r == -1 || r == 0) { free(resp_data); return 0; } // Receiving failed
@@ -140,7 +139,6 @@ static int do_paste(uint8_t cmd, int clipboard_id, int region, void *buf, size_t
 	if (resp_data_size > count)
 		copy_size = count;
 	memcpy(buf, resp_data, copy_size);
-	// TODO: what do with the '\0's
 	if (((char *) buf)[copy_size-1] != '\0') {
 		// data from server was not null terminated (or buf was not big enough
 		// for it and it was truncated). Add a '\0'.
@@ -148,10 +146,9 @@ static int do_paste(uint8_t cmd, int clipboard_id, int region, void *buf, size_t
 	}
 	free(resp_data);
 
-	// TODO: Return number of read clipboard data bytes OR data_size???
-	// the prof said to return data_size to let the app know it might have more
-	// to read. but then should the server send everything or just `count` bytes?
-	return (int) copy_size;
+	// Return number of bytes the server sent. Might be less than `count`! This allows
+	// the app to know it didn't have a buffer big enough for the whole region.
+	return (int) resp_data_size;
 }
 
 /*

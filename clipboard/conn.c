@@ -123,18 +123,3 @@ int conn_remove(struct conn *rm, pthread_rwlock_t *rwlock)
 
 	return 0;
 }
-
-
-// TODO
-//void conn_print(struct conn *head)
-//{
-//	int i = 0;
-//	for (struct conn *conn = head->next; conn != NULL; conn = conn->next) {
-//		printf("%d\n", i++);
-//		printf("tid = %zd\n", conn->tid);
-//		printf("sockfd = %d\n", conn->sockfd);
-//		printf("mutex = %d\n", conn->mutex);
-//		printf("next = %p\n", conn->next);
-//		printf("prev = %p\n", conn->prev);
-//	}
-//}

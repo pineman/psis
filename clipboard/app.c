@@ -117,6 +117,7 @@ void *serve_app(void *arg)
 			if (r != 0) cb_eperror(r);
 			r = pthread_mutex_unlock(&regions[region].update_mutex);
 			if (r != 0) cb_eperror(r);
+
 			r = paste_region_app(region, conn->sockfd);
 			if (r == false) break; // Terminate connection
 		}

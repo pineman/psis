@@ -57,7 +57,6 @@ void main_cleanup(void *arg);
 	pthread_cancel(main_tid); \
 } while(0);
 
-// TODO: remove for prof. release?
 #ifdef CB_DBG
 	#define cb_log(format, ...) do { \
 		char __buf__[1024]; \

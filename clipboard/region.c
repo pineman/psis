@@ -49,7 +49,7 @@ bool do_copy(int sockfd, uint8_t region, uint32_t data_size, char **data, bool c
 
 	// Receive data
 	r = cb_recv(sockfd, *data, data_size);
-	if (r == 0) { cb_log("disconnect, r = %d, errno = %d\n", r, errno); return false; }
+	if (r == 0) { cb_log("disconnect, r = %d\n", r); return false; }
 	if (r == -1) { cb_log("recv failed, r = %d, errno = %d\n", r, errno); return false; }
 	cb_log("[GOT] data = %s\n", *data);
 
