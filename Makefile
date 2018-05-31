@@ -16,8 +16,9 @@ SRCDIR=.
 SRC=$(shell find $(SRCDIR) -name "*.c" -not -path "./.vscode/*" | cut -d"/" -f2-)
 
 # Define executables and their link dependencies here
-EXECS = clipboard/clipboard apps/copy_cont apps/paste apps/wait apps/print_clipboard
+EXECS = clipboard/clipboard apps/copy_cont apps/copy apps/paste apps/wait apps/print_clipboard
 clipboard/clipboard_DEPS=$(shell find cb_common clipboard -type f -name "*.c")
+apps/copy_DEPS=$(shell find cb_common library -type f -name "*.c") apps/copy.c
 apps/copy_cont_DEPS=$(shell find cb_common library -type f -name "*.c") apps/copy_cont.c
 apps/paste_DEPS=$(shell find cb_common library -type f -name "*.c") apps/paste.c
 apps/wait_DEPS=$(shell find cb_common library -type f -name "*.c") apps/wait.c
