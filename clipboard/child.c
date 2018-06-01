@@ -24,12 +24,7 @@ int listen_child(void)
 
 	struct sockaddr_in local_addr;
 	local_addr.sin_family = AF_INET;
-	if (root) { // TODO
-		local_addr.sin_port = htons(1337);
-	}
-	else {
-		local_addr.sin_port = 0;
-	}
+	local_addr.sin_port = 0;
 	local_addr.sin_addr.s_addr = INADDR_ANY;
 	socklen_t local_addrlen = sizeof(struct sockaddr_in);
 
@@ -92,6 +87,7 @@ void *serve_child(void *arg)
 	r = pthread_mutex_lock(&conn->mutex);
 	if (r != 0) cb_eperror(r);
 
+	// Send CB_NUM_REGIONS number of copy commands, one for each region.
 	bool success;
 	for (int i = 0; i < CB_NUM_REGIONS; i++)
 	{
@@ -137,7 +133,8 @@ void *serve_child(void *arg)
 			break;
 		}
 
-		r = do_copy(conn->sockfd, region, data_size, &data, root, false, false);
+		// do_copy: copy down if we don't have a parent (root = true); and we're not the app
+		r = do_copy(conn->sockfd, region, data_size, &data, root, false);
 		if (r == false) break; // Terminate connection
 	}
 

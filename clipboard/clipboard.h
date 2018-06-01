@@ -63,12 +63,6 @@ void main_cleanup(void *arg);
 		sprintf(__buf__, format, __VA_ARGS__); \
 		fprintf(stderr, "LOG: %s:%d %s(), %s", __FILE__, __LINE__, __func__, __buf__); \
 	} while(0);
-	#define cb_log1 cb_log
 #else
 	#define cb_log(format, ...) do {} while(0);
-	#define cb_log1(format, ...) do { \
-		char __buf__[1024]; \
-		sprintf(__buf__, format, __VA_ARGS__); \
-		fprintf(stderr, "LOG: %s:%d %s(), %s", __FILE__, __LINE__, __func__, __buf__); \
-	} while(0);
 #endif

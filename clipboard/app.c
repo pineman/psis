@@ -97,7 +97,8 @@ void *serve_app(void *arg)
 		if (cmd == CB_CMD_COPY) {
 			cb_log("%s", "[GOT] cmd copy\n");
 
-			r = do_copy(conn->sockfd, region, data_size, &data, root, false, true);
+			// do_copy: copy down if we don't have a parent (root = true); and we're the app
+			r = do_copy(conn->sockfd, region, data_size, &data, root, true);
 			if (r == false) break; // Terminate connection
 		}
 		else if (cmd == CB_CMD_REQ_PASTE) {

@@ -31,7 +31,7 @@ void conn_destroy(struct conn *conn)
 	free(conn);
 }
 
-// Append to a conn_list
+// Append to a conn_list (unsafe, caller must lock the list)
 void conn_append(struct conn *head, struct conn *new)
 {
 	assert(head != NULL);
@@ -47,23 +47,30 @@ void conn_append(struct conn *head, struct conn *new)
 	new->prev = head;
 }
 
+// This generic accept loop is used by the app accept thread and the children accept thread.
 void conn_accept_loop(int server, struct conn *head, pthread_rwlock_t *rwlock, void *(*handle_conn)(void *))
 {
 	int r;
 
 	while (1) {
+		// Accept connections
 		int client = accept(server, NULL, 0);
 		if (client == -1) { r = errno; goto cont; }
 
+		// Create a new connection struct and append to the list.
+		// Disable thread cancellation to prevent unknown states in the list.
 		(void) pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, NULL);
 
+		// New connection
 		struct conn *conn = NULL;
 		r = conn_new(&conn, client);
 		if (r != 0) goto cont_conn;
 
+		// Create the connection handler thread
 		r = pthread_create(&conn->tid, NULL, handle_conn, conn);
 		if (r != 0) goto cont_conn;
 
+		// Critical section: append to connection list.
 		r = pthread_rwlock_wrlock(rwlock);
 		if (r != 0) goto cont_conn;
 		conn_append(head, conn);
@@ -74,6 +81,8 @@ void conn_accept_loop(int server, struct conn *head, pthread_rwlock_t *rwlock, v
 
 		continue;
 
+	// If an error occurs inside the accept loop, print it but otherwise keep
+	// accepting connections.
 	cont_conn:
 		conn_destroy(conn);
 	cont:
@@ -89,6 +98,7 @@ int conn_cancel_all(struct conn *head, pthread_rwlock_t *rwlock)
 
 	// Cancel all connection threads (always fetch next of dummy head)
 	while (1) {
+		// Critical section: reading from the list.
 		r = pthread_rwlock_rdlock(rwlock);
 		if (r != 0) return r;
 		conn = head->next;
@@ -96,6 +106,7 @@ int conn_cancel_all(struct conn *head, pthread_rwlock_t *rwlock)
 		if (r != 0) return r;
 		if (conn == NULL) break;
 
+		// Cancel and join thread (connection)
 		t = conn->tid;
 		r = pthread_cancel(t);
 		if (r != 0) return r;
@@ -112,6 +123,7 @@ int conn_remove(struct conn *rm, pthread_rwlock_t *rwlock)
 	assert(rm != NULL);
 	int r;
 
+	// Critical section: writing to a connection list.
 	r = pthread_rwlock_wrlock(rwlock);
 	if (r != 0) return r;
 

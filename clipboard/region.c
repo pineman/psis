@@ -35,7 +35,11 @@ void destroy_regions(void)
 	}
 }
 
-bool do_copy(int sockfd, uint8_t region, uint32_t data_size, char **data, bool copy_down, bool initial, bool app)
+// This function handles copy commands for all threads.
+// The parent thread always copies new updates down to children,
+// and the child and app threads do as well if the clipboard is in single mode.
+// If the clipboard is in connected mode, they send new updates to the parent (copy_down == false).
+bool do_copy(int sockfd, uint8_t region, uint32_t data_size, char **data, bool copy_down, bool app)
 {
 	int r;
 
@@ -74,12 +78,10 @@ bool do_copy(int sockfd, uint8_t region, uint32_t data_size, char **data, bool c
 		// Update our region and send down to children (copy down)
 		cb_log("%s", "update region copy to children\n");
 		update_region(region, data_size, data);
-		if (!initial) {
-			copy_to_children(region);
-		}
+		copy_to_children(region);
 	}
 	else {
-		// Send to parent conn
+		// Send to parent connection
 		cb_log("%s", "copy to parent\n");
 		copy_to_parent(region, data_size, *data);
 
