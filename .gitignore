@@ -1,9 +1,8 @@
+# Ignore all
+*
+# Unignore all with extensions
+!*.*
 .obj
-apps/test
-apps/copy
-apps/paste
-apps/wait
-clipboard/clipboard
 .dummy
 report/build/report.pdf
 .vscode
