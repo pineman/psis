@@ -95,6 +95,19 @@ int clipboard_copy(int clipboard_id, int region, void *buf, size_t count)
 	// Fatal error: app tried to send invalid message.
 	assert(r != -2);
 
+	// Get the server's response
+	uint8_t resp_cmd;
+	uint8_t resp_region;
+	uint32_t resp_data_size;
+	r = cb_recv_msg(clipboard_id, &resp_cmd, &resp_region, &resp_data_size);
+	if (r == -1 || r == 0) return 0; // Receiving failed
+	// Fatal error: server sent invalid message.
+	assert(r != -2);
+	// Fatal error: server did not reply correctly
+	assert(resp_region == region);
+	if (resp_cmd == CB_CMD_RESP_COPY_NOK) return 0;
+	assert(resp_cmd == CB_CMD_RESP_COPY_OK);
+
 	// Send data
 	r = cb_send(clipboard_id, (void *) buf, count);
 	if (r == -1) return 0;
