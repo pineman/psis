@@ -1,15 +1,15 @@
-#CC=clang
+CC=clang
 #CXX=
-CFLAGS=-pthread
+CFLAGS=-std=c11 -pthread
 CFLAGS+=-Wall -Wextra -Wpedantic -Wunused-result -Wunreachable-code
 #CFLAGS=-Weverything
-CFLAGS+=-O3
-#CFLAGS+=-g -Og
+#CFLAGS+=-O3
+CFLAGS+=-g -Og
 #CFLAGS+=-pg
-#CFLAGS+=-DCB_DBG
-CFLAGS+=-march=native
+CFLAGS+=-DCB_DBG
+CFLAGS+=-fdiagnostics-color=always -march=native
 #CXXFLAGS=$(CFLAGS)
-CPPFLAGS=-I cb_common -I library
+CPPFLAGS=-I cb_common -I library -D_POSIX_C_SOURCE="200809L"
 LDFLAGS=-pthread
 LDLIBS=
 SRCDIR=.
@@ -32,29 +32,12 @@ apps/print_clipboard_DEPS=$(APP_DEPS) apps/print_clipboard.c
 ###############################################################################
 OBJDIR=.obj
 
-clipboard/clipboard: $(addprefix $(OBJDIR)/,$(clipboard/clipboard_DEPS:%.c=%.o))
-	$(CC) -o $@ $(LDFLAGS) $(LDLIBS) $^
+define EXEC_templ =
+$(1): $$(addprefix $$(OBJDIR)/,$$($(1)_DEPS:%.c=%.o))
+	$(CC) -o $$@ $$(LDFLAGS) $$(LDLIBS) $$($(1)_LIBS:%=-l%) $$^
+endef
 
-apps/copy: $(addprefix $(OBJDIR)/,$(apps/copy_DEPS:%.c=%.o))
-	$(CC) -o $@ $(LDFLAGS) $(LDLIBS) $^
-
-apps/paste: $(addprefix $(OBJDIR)/,$(apps/paste_DEPS:%.c=%.o))
-	$(CC) -o $@ $(LDFLAGS) $(LDLIBS) $^
-
-apps/wait: $(addprefix $(OBJDIR)/,$(apps/wait_DEPS:%.c=%.o))
-	$(CC) -o $@ $(LDFLAGS) $(LDLIBS) $^
-
-apps/copy_cont: $(addprefix $(OBJDIR)/,$(apps/copy_cont_DEPS:%.c=%.o))
-	$(CC) -o $@ $(LDFLAGS) $(LDLIBS) $^
-
-apps/paste_cont: $(addprefix $(OBJDIR)/,$(apps/paste_cont_DEPS:%.c=%.o))
-	$(CC) -o $@ $(LDFLAGS) $(LDLIBS) $^
-
-apps/wait_cont: $(addprefix $(OBJDIR)/,$(apps/wait_cont_DEPS:%.c=%.o))
-	$(CC) -o $@ $(LDFLAGS) $(LDLIBS) $^
-
-apps/print_clipboard: $(addprefix $(OBJDIR)/,$(apps/print_clipboard_DEPS:%.c=%.o))
-	$(CC) -o $@ $(LDFLAGS) $(LDLIBS) $^
+$(foreach exec,$(EXECS),$(eval $(call EXEC_templ,$(exec))))
 
 -include $(addprefix $(OBJDIR)/, $(SRC:.c=.d))
 $(OBJDIR)/%.d: %.c
