@@ -91,7 +91,16 @@
 
 \section{Introduction}
 \par
-The goal of this project was to implement a distributed clipboard and an application interface to it. Applications can copy (write) and paste (read) from and to regions on a local clipboard, which can be connected to another remote clipboard so as to synchronize their regions. The resulting network is a tree, as a clipboard can connect to only one other clipboard (the parent), but it can itself have connections to various children clipboards. There is always one clipboard which did not start by being connected, and that is the root of the tree. This tree is shown in <le figure ref>
+The goal of this project was to implement a distributed clipboard and an
+application interface to it. Applications can copy (write) and paste (read) from
+and to regions on a local clipboard, which can be connected to another remote
+clipboard so as to synchronize their regions. The resulting network is a tree,
+as a clipboard can connect to only one other clipboard (the parent), but it can
+itself have connections to various children clipboards. There is always one
+clipboard which did not start by being connected, and that is the root of the
+tree.
+
+%TODO: do a tree figure
 
 \section{Architecture}
 \subsection{Source Tree}
@@ -99,12 +108,21 @@ The goal of this project was to implement a distributed clipboard and an applica
 \dirtree{%
 	.1 /.
 	.2 apps/.
-	.3 copy.c.
-	.3 paste.c.
-	.3 wait.c.
+    .3 copy.c \tabto*{3cm} \# app that copies a string to a clipboard region both passed as command line arguments .
+    .3 copy\_cont.c \tabto*{3cm} \# app that copies strings to clipboard regions continuously until stopped .
+	.3 paste.c \tabto*{3cm} \# app that pastes a string from a clipboard region passed as command line argument .
+	.3 paste\_cont.c \tabto*{3cm} \# app that pastes strings from the clipboard regions continuously until stopped .
+    .3 print\_clipboard.c \tabto*{3cm} \# app that prints the contents of all the clipboard regions once.
+	.3 wait.c \tabto*{3cm} \# app that waits for a region to be written and then
+    pastes the data, the region is passed as a command line argument .
+    .3 wait\_cont.c \tabto*{3cm} \# the same as the paste cont app but waits  for the regions to be updated .
 	.3 copy.
+    .3 copy\_cont.
 	.3 paste.
+	.3 paste\_cont.
+    .3 print\_clipboard.
 	.3 wait.
+	.3 wait\_cont.
 	.2 cb\_common/.
 	.3 cb\_common.h \tabto*{3cm} \# common macros between library and clipboard .
 	.3 cb\_msg.h.
@@ -132,7 +150,7 @@ The goal of this project was to implement a distributed clipboard and an applica
 \subsection{Communication Protocol}
 \par
 To communicate between local applications and local clipboards and between remote clipboards, a simple format for messages was implemented as
-\begin{minted}[tabsize=4]{c}
+\begin{minted}{c}
 uint8_t command;
 uint8_t region;
 uint32_t data_size;
