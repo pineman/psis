@@ -31,6 +31,7 @@ extern struct region regions[CB_NUM_REGIONS];
 // Dummy head node doubly-linked list
 extern struct conn *child_conn_list;
 extern pthread_rwlock_t child_conn_list_rwlock; // Protects child_conn_list
+extern pthread_mutex_t update_mutex;
 extern struct conn *app_conn_list;
 extern pthread_rwlock_t app_conn_list_rwlock; // Protects app_conn_list
 

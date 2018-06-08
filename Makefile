@@ -1,16 +1,16 @@
 CC=clang
 #CXX=
-CFLAGS=-std=c11 -pthread
+CFLAGS=-std=c11
 CFLAGS+=-Wall -Wextra -Wpedantic -Wunused-result -Wunreachable-code
 #CFLAGS=-Weverything
 #CFLAGS+=-O3
 CFLAGS+=-g -Og
 #CFLAGS+=-pg
 CFLAGS+=-DCB_DBG
-CFLAGS+=-fdiagnostics-color=always -march=native
+CFLAGS+=-fdiagnostics-color=always -march=native -pthread -flto
 #CXXFLAGS=$(CFLAGS)
 CPPFLAGS=-I cb_common -I library -D_POSIX_C_SOURCE="200809L"
-LDFLAGS=-pthread
+LDFLAGS=-pthread -flto
 LDLIBS=
 SRCDIR=.
 SRC=$(shell find $(SRCDIR) -name "*.c" -not -path "./.vscode/*" | cut -d"/" -f2-)

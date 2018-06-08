@@ -163,4 +163,3 @@ void cleanup_serve_child(void *arg)
 
 	conn_destroy(clean->conn);
 }
-

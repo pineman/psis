@@ -29,9 +29,9 @@ void destroy_regions(void)
 {
 	for (int i = 0; i < CB_NUM_REGIONS; i++) {
 		free(regions[i].data);
-		pthread_rwlock_destroy(&regions[i].rwlock);
-		pthread_mutex_destroy(&regions[i].update_mutex);
-		pthread_cond_destroy(&regions[i].update_cond);
+		(void) pthread_rwlock_destroy(&regions[i].rwlock);
+		(void) pthread_mutex_destroy(&regions[i].update_mutex);
+		(void) pthread_cond_destroy(&regions[i].update_cond);
 	}
 }
 
@@ -161,6 +161,9 @@ void copy_to_children(uint8_t region)
 	r = pthread_rwlock_rdlock(&child_conn_list_rwlock);
 	if (r != 0) cb_eperror(r);
 
+	r = pthread_mutex_lock(&update_mutex);
+	if (r != 0) cb_eperror(r);
+
 	// Send to all children
 	struct conn *child_conn = child_conn_list->next;
 	while (child_conn != NULL) {
@@ -179,6 +182,9 @@ void copy_to_children(uint8_t region)
 
 		child_conn = child_conn->next;
 	}
+
+	r = pthread_mutex_unlock(&update_mutex);
+	if (r != 0) cb_eperror(r);
 
 	// End Critical section: Unlock regions[region] and child_conn_list
 	r = pthread_rwlock_unlock(&child_conn_list_rwlock);

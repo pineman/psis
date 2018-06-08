@@ -27,6 +27,7 @@ struct region regions[CB_NUM_REGIONS];
 // Dummy head node doubly-linked list
 struct conn *child_conn_list;
 pthread_rwlock_t child_conn_list_rwlock; // Protects child_conn_list
+pthread_mutex_t update_mutex;
 struct conn *app_conn_list;
 pthread_rwlock_t app_conn_list_rwlock; // Protects app_conn_list
 
@@ -52,6 +53,7 @@ void init_globals(void)
 	if (app_conn_list == NULL) cb_eperror(errno);
 	r = pthread_rwlock_init(&app_conn_list_rwlock, NULL);
 	if (r != 0) cb_eperror(r);
+	r = init_mutex(&update_mutex);
 
 	root = true;
 	r = pthread_rwlock_init(&parent_conn_rwlock, NULL);
@@ -65,9 +67,10 @@ void free_globals(void)
 	free(child_conn_list);
 	free(app_conn_list);
 
-	pthread_rwlock_destroy(&child_conn_list_rwlock);
-	pthread_rwlock_destroy(&app_conn_list_rwlock);
-	pthread_rwlock_destroy(&parent_conn_rwlock);
+	(void) pthread_rwlock_destroy(&child_conn_list_rwlock);
+	(void) pthread_mutex_destroy(&update_mutex);
+	(void) pthread_rwlock_destroy(&app_conn_list_rwlock);
+	(void) pthread_rwlock_destroy(&parent_conn_rwlock);
 
 	destroy_regions();
 }
