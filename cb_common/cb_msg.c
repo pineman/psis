@@ -35,7 +35,8 @@ int cb_setsockopt(int sockfd)
 	return 0;
 }
 
-// Wrapper around send(), write len bytes to sockfd (inspired by Stevens book)
+// Wrapper around send(), write len bytes from sockfd (inspired by Stevens Unix
+// Network Programming 3rd ed., chapter 3.9)
 // len must not be 0
 // return value is:
 //	-1 on error and errno is set
@@ -66,7 +67,8 @@ ssize_t cb_send(int sockfd, void *buf, size_t len)
 	return len;
 }
 
-// Wrapper around recv(), read len bytes from sockfd (inspired by Stevens book)
+// Wrapper around recv(), read len bytes from sockfd (inspired by Stevens Unix
+// Network Programming 3rd ed., chapter 3.9)
 // len must not be 0
 // return value is:
 //	-1 on error and errno is set
