@@ -1,3 +1,5 @@
+Tested on Linux, MacOS, Windows (via MSYS2), OpenIndiana, FreeBSD, OpenBSD.
+
 # Roadmap
  * Start by local connections, 1 client to 1 server
  * 1 client to 1 server, local to remote connections (backup lab7)

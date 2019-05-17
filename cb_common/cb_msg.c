@@ -18,17 +18,16 @@
 int cb_setsockopt(int sockfd)
 {
 	int r;
-	int set = 1;
 
 #ifdef SO_NOSIGPIPE
 	//	Make sure that SIGPIPE signal is not generated when writing to a
 	//	connection that was already closed by the peer.
-	r = setsockopt(sockfd, SOL_SOCKET, SO_NOSIGPIPE, &set, sizeof(int));
+	r = setsockopt(sockfd, SOL_SOCKET, SO_NOSIGPIPE, &(int) {1}, sizeof(int));
 	if (r == -1) return -1;
 #endif
 
 #ifdef SO_REUSEPORT
-	r = setsockopt(sockfd, SOL_SOCKET, SO_REUSEPORT, &set, sizeof(int));
+	r = setsockopt(sockfd, SOL_SOCKET, SO_REUSEPORT, &(int) {1}, sizeof(int));
 	if (r == -1) return -1;
 #endif
 

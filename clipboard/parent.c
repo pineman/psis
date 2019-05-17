@@ -114,7 +114,38 @@ void cleanup_serve_parent(void *arg)
 	if (r != 0) cb_eperror(r);
 	// Parent connection dead, now we are the root.
 	conn_destroy(parent_conn);
-	root = true;
+	root = true; // TODO: data race here
+	// with one server and one child server
+	/*
+	==================
+WARNING: ThreadSanitizer: data race (pid=7935)
+  Write of size 1 at 0x55decf2e1d68 by thread T1 (mutexes: write M3):
+    #0 cleanup_serve_parent /home/pineman/code/proj/psis/clipboard/parent.c:117:7 (clipboard+0xc7809)
+    #1 serve_parent /home/pineman/code/proj/psis/clipboard/parent.c:71:2 (clipboard+0xc75f0)
+    #2 cb_recv /home/pineman/code/proj/psis/cb_common/cb_msg.c:86:11 (clipboard+0xc46cf)
+    #3 cb_recv_msg /home/pineman/code/proj/psis/cb_common/cb_msg.c:161:6 (clipboard+0xc48ef)
+    #4 serve_parent /home/pineman/code/proj/psis/clipboard/parent.c:75:7 (clipboard+0xc7118)
+
+  Previous read of size 1 at 0x55decf2e1d68 by main thread:
+    #0 main_cleanup /home/pineman/code/proj/psis/clipboard/main.c:153:7 (clipboard+0xcbde4)
+    #1 main /home/pineman/code/proj/psis/clipboard/main.c:211:2 (clipboard+0xcc1c1)
+
+  Location is global 'root' of size 1 at 0x55decf2e1d68 (clipboard+0x000000b2fd68)
+
+  Mutex M3 (0x55decf2e1d30) created at:
+    #0 pthread_rwlock_init <null> (clipboard+0x6a2a4)
+    #1 init_globals /home/pineman/code/proj/psis/clipboard/main.c:59:6 (clipboard+0xcb1ec)
+    #2 main /home/pineman/code/proj/psis/clipboard/main.c:167:2 (clipboard+0xcbff8)
+
+  Thread T1 (tid=7938, running) created by main thread at:
+    #0 pthread_create <null> (clipboard+0x54207)
+    #1 create_threads /home/pineman/code/proj/psis/clipboard/main.c:122:7 (clipboard+0xcb882)
+    #2 listen_sockets /home/pineman/code/proj/psis/clipboard/main.c:102:2 (clipboard+0xcb534)
+    #3 main /home/pineman/code/proj/psis/clipboard/main.c:191:2 (clipboard+0xcc038)
+
+SUMMARY: ThreadSanitizer: data race /home/pineman/code/proj/psis/clipboard/parent.c:117:7 in cleanup_serve_parent
+==================
+*/
 	parent_conn = NULL;
 	r = pthread_rwlock_unlock(&parent_conn_rwlock);
 	if (r != 0) cb_eperror(r);

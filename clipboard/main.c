@@ -196,6 +196,7 @@ int main(int argc, char *argv[])
 	while (1) {
 		int sig;
 
+		// TODO: check out linux-specific signalfd
 		r = sigwait(&sigset, &sig);
 		if (r != 0) { cb_perror(r); sig = SIGTERM; }
 

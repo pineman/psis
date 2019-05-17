@@ -107,7 +107,39 @@ int conn_cancel_all(struct conn *head, pthread_rwlock_t *rwlock)
 		if (conn == NULL) break;
 
 		// Cancel and join thread (connection)
-		t = conn->tid;
+		t = conn->tid; // TODO: race condition here with cleanup_serve_app -> conn_destroy -> free(conn)
+		// With one server and one client app:
+		/*
+		WARNING: ThreadSanitizer: data race (pid=9329)
+  Write of size 8 at 0x7b1400002800 by thread T3:
+    #0 free <null> (clipboard+0x7015f)
+    #1 conn_destroy /home/pineman/code/proj/psis/clipboard/conn.c:31:2 (clipboard+0xc5ba8)
+    #2 cleanup_serve_app /home/pineman/code/proj/psis/clipboard/app.c:149:2 (clipboard+0xc7e8b)
+    #3 serve_app /home/pineman/code/proj/psis/clipboard/app.c:87:2 (clipboard+0xc7ce9)
+    #4 cb_recv /home/pineman/code/proj/psis/cb_common/cb_msg.c:86:11 (clipboard+0xc46cf)
+    #5 cb_recv_msg /home/pineman/code/proj/psis/cb_common/cb_msg.c:161:6 (clipboard+0xc48ef)
+    #6 serve_app /home/pineman/code/proj/psis/clipboard/app.c:91:7 (clipboard+0xc76cf)
+
+  Previous read of size 8 at 0x7b1400002800 by thread T2:
+    #0 conn_cancel_all /home/pineman/code/proj/psis/clipboard/conn.c:110:13 (clipboard+0xc61c6)
+    #1 cleanup_app_accept /home/pineman/code/proj/psis/clipboard/app.c:66:6 (clipboard+0xc74dd)
+    #2 app_accept /home/pineman/code/proj/psis/clipboard/app.c:49:2 (clipboard+0xc746c)
+    #3 conn_accept_loop /home/pineman/code/proj/psis/clipboard/conn.c:57:16 (clipboard+0xc5f3b)
+    #4 app_accept /home/pineman/code/proj/psis/clipboard/app.c:51:2 (clipboard+0xc7422)
+
+  Thread T3 (tid=9351, running) created by thread T2 at:
+    #0 pthread_create <null> (clipboard+0x54207)
+    #1 conn_accept_loop /home/pineman/code/proj/psis/clipboard/conn.c:70:7 (clipboard+0xc5fb0)
+    #2 app_accept /home/pineman/code/proj/psis/clipboard/app.c:51:2 (clipboard+0xc7422)
+
+  Thread T2 (tid=9332, running) created by main thread at:
+    #0 pthread_create <null> (clipboard+0x54207)
+    #1 create_threads /home/pineman/code/proj/psis/clipboard/main.c:129:6 (clipboard+0xca9a2)
+    #2 listen_sockets /home/pineman/code/proj/psis/clipboard/main.c:102:2 (clipboard+0xca534)
+    #3 main /home/pineman/code/proj/psis/clipboard/main.c:191:2 (clipboard+0xcaee4)
+
+SUMMARY: ThreadSanitizer: data race (/home/pineman/code/proj/psis/clipboard/clipboard+0x7015f) in __interceptor_free
+*/
 		r = pthread_cancel(t);
 		if (r != 0) return r;
 		r = pthread_join(t, NULL);

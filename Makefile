@@ -1,16 +1,24 @@
+#CC=gcc -fstack-clash-protection
 CC=clang
 #CXX=
-CFLAGS=-std=c11
-CFLAGS+=-Wall -Wextra -Wpedantic -Wunused-result -Wunreachable-code
-#CFLAGS=-Weverything
-#CFLAGS+=-O3
-CFLAGS+=-g -Og
-#CFLAGS+=-pg
-CFLAGS+=-DCB_DBG
-CFLAGS+=-fdiagnostics-color=always -march=native -pthread -flto
+CFLAGS= -std=c11 -fno-plt -pipe -fdiagnostics-color=always
+CFLAGS+= -Wall -Wextra -Wpedantic -Wunused-result -Wunreachable-code
+#CFLAGS= -Weverything
+#CFLAGS+= -O3 -march=native -flto
+CFLAGS+= -g3 -Og
+#CFLAGS+= -pg
+#CFLAGS+= -DCB_DBG
+CFLAGS+= -pthread
+CFLAGS+= -fsanitize=undefined
+#CFLAGS+= -fsanitize=address -fsanitize=leak -fcheck-pointer-bounds
+CFLAGS+= -fsanitize=thread
+# Security flags
+CFLAGS+= -D_FORTIFY_SOURCE=2 -Wp,-D_GLIBCXX_ASSERTIONS -fstack-protector-strong -fPIE
+CFLAGS+=-I cb_common -I library -D_POSIX_C_SOURCE="200809L"
 #CXXFLAGS=$(CFLAGS)
-CPPFLAGS=-I cb_common -I library -D_POSIX_C_SOURCE="200809L"
-LDFLAGS=-pthread -flto
+LDFLAGS=
+# Security flags
+LDFLAGS+=-z noexecstack -z relro -z now -pie
 LDLIBS=
 SRCDIR=.
 SRC=$(shell find $(SRCDIR) -name "*.c" -not -path "./.vscode/*" | cut -d"/" -f2-)
@@ -34,7 +42,7 @@ OBJDIR=.obj
 
 define EXEC_templ =
 $(1): $$(addprefix $$(OBJDIR)/,$$($(1)_DEPS:%.c=%.o))
-	$(CC) -o $$@ $$(LDFLAGS) $$(LDLIBS) $$($(1)_LIBS:%=-l%) $$^
+	$(CC) -o $$@ $$(CFLAGS) $$(LDFLAGS) $$(LDLIBS) $$($(1)_LIBS:%=-l%) $$^
 endef
 
 $(foreach exec,$(EXECS),$(eval $(call EXEC_templ,$(exec))))
@@ -42,17 +50,17 @@ $(foreach exec,$(EXECS),$(eval $(call EXEC_templ,$(exec))))
 -include $(addprefix $(OBJDIR)/, $(SRC:.c=.d))
 $(OBJDIR)/%.d: %.c
 	@mkdir -p `dirname $@`
-	@$(CC) $(CPPFLAGS) -MM -MF $@ $^
+	@$(CC) $(CFLAGS) -MM -MF $@ $^
 
 $(OBJDIR)/%.o: %.c
-	$(CC) -c -o $@ $(CPPFLAGS) $(CFLAGS) $<
+	$(CC) -MJ $@.json -c -o $@ $(CFLAGS) $<
 
 .PHONY=all clean remake
 .DEFAULT_GOAL=all
 all: $(EXECS)
 
 clean:
-	rm -rf $(OBJDIR) $(EXECS) compile_commands.json
+	rm -rf $(OBJDIR) $(EXECS) compile_commands.json *.plist
 
 remake:
 	$(MAKE) clean
