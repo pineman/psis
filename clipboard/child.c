@@ -24,7 +24,8 @@ int listen_child(void)
 
 	struct sockaddr_in local_addr;
 	local_addr.sin_family = AF_INET;
-	local_addr.sin_port = 0;
+	//local_addr.sin_port = 0; // Randomize port
+	local_addr.sin_port = htons(CB_CHILD_PORT);
 	local_addr.sin_addr.s_addr = INADDR_ANY;
 	socklen_t local_addrlen = sizeof(struct sockaddr_in);
 

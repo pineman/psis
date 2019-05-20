@@ -13,6 +13,8 @@
 #include "conn.h"
 #include "region.h"
 
+#define CB_CHILD_PORT 9999
+
 // Helper struct to cleanup threads.
 struct clean {
 	char **data;
