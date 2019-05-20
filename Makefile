@@ -1,24 +1,23 @@
 #CC=gcc -fstack-clash-protection
 CC=clang
 #CXX=
-CFLAGS= -std=c11 -fno-plt -pipe -fdiagnostics-color=always
+CFLAGS= -std=c11 -fno-plt -pipe -fdiagnostics-color=always -pthread
 CFLAGS+= -Wall -Wextra -Wpedantic -Wunused-result -Wunreachable-code
-#CFLAGS= -Weverything
+#CFLAGS+= -Weverything
 #CFLAGS+= -O3 -march=native -flto
 CFLAGS+= -g3 -Og
 #CFLAGS+= -pg
 #CFLAGS+= -DCB_DBG
-CFLAGS+= -pthread
 CFLAGS+= -fsanitize=undefined
 #CFLAGS+= -fsanitize=address -fsanitize=leak -fcheck-pointer-bounds
 CFLAGS+= -fsanitize=thread
 # Security flags
 CFLAGS+= -D_FORTIFY_SOURCE=2 -Wp,-D_GLIBCXX_ASSERTIONS -fstack-protector-strong -fPIE
-CFLAGS+=-I cb_common -I library -D_POSIX_C_SOURCE="200809L"
+CFLAGS+= -I cb_common -I library -D_POSIX_C_SOURCE="200809L"
 #CXXFLAGS=$(CFLAGS)
-LDFLAGS=
+LDFLAGS= -fuse-ld=gold
 # Security flags
-LDFLAGS+=-z noexecstack -z relro -z now -pie
+LDFLAGS+= -z noexecstack -z relro -z now -pie
 LDLIBS=
 SRCDIR=.
 SRC=$(shell find $(SRCDIR) -name "*.c" -not -path "./.vscode/*" | cut -d"/" -f2-)
@@ -58,6 +57,7 @@ $(OBJDIR)/%.o: %.c
 .PHONY=all clean remake
 .DEFAULT_GOAL=all
 all: $(EXECS)
+	sed -e '1s/^/[\n/' -e '$$s/,$$/\n]/' .obj/**/**.json > compile_commands.json
 
 clean:
 	rm -rf $(OBJDIR) $(EXECS) compile_commands.json *.plist
