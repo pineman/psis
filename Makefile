@@ -1,10 +1,10 @@
 #CC=gcc -fstack-clash-protection
 CC=clang
 #CXX=
-CFLAGS= -std=c11 -fno-plt -pipe -fdiagnostics-color=always -pthread
+CFLAGS+= -std=c11 -fno-plt -pipe -fdiagnostics-color=always -march=native -pthread
 CFLAGS+= -Wall -Wextra -Wpedantic -Wunused-result -Wunreachable-code
 #CFLAGS+= -Weverything
-#CFLAGS+= -O3 -march=native -flto
+#CFLAGS+= -O3 -flto
 CFLAGS+= -g3 -Og
 #CFLAGS+= -pg
 #CFLAGS+= -DCB_DBG
@@ -15,10 +15,10 @@ CFLAGS+= -fsanitize=thread
 CFLAGS+= -D_FORTIFY_SOURCE=2 -Wp,-D_GLIBCXX_ASSERTIONS -fstack-protector-strong -fPIE
 CFLAGS+= -I cb_common -I library -D_POSIX_C_SOURCE="200809L"
 #CXXFLAGS=$(CFLAGS)
-LDFLAGS= -fuse-ld=gold
-# Security flags
+#LDFLAGS+= -fuse-ld=gold
 LDFLAGS+= -z noexecstack -z relro -z now -pie
-LDLIBS=
+LDLIBS+=
+
 SRCDIR=.
 SRC=$(shell find $(SRCDIR) -name "*.c" -not -path "./.vscode/*" | cut -d"/" -f2-)
 
