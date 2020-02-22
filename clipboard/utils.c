@@ -36,6 +36,7 @@ int init_mutex(pthread_mutex_t *mutex)
 	r = pthread_mutexattr_settype(&mutex_attr, PTHREAD_MUTEX_ERRORCHECK);
 	if (r != 0) return r;
 
+	// TODO: Use something like CMake's CheckSymbolExists
 	r = pthread_mutexattr_setrobust(&mutex_attr, PTHREAD_MUTEX_ROBUST);
 	if (r != 0) return r;
 
