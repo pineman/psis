@@ -11,7 +11,7 @@
  * `region` is 1 byte `uint8_t`
  * `data_size` is 4 bytes `uint32_t`
  */
-#define CB_MSG_SIZE 1+1+4
+#define CB_MSG_SIZE (1+1+4)
 enum cb_cmd {
 	CB_CMD_COPY,
 	CB_CMD_RESP_COPY_OK,

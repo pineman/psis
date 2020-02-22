@@ -1,7 +1,6 @@
 #include <stddef.h>
 #include <string.h>
 #include <limits.h>
-#include <assert.h>
 
 #include <unistd.h>
 #include <sys/socket.h>
@@ -13,7 +12,6 @@
 
 #include "clipboard.h"
 #include "region.h"
-#include "utils.h"
 #include "app.h"
 
 // Listen UNIX on `CB_SOCKET` for local app connections

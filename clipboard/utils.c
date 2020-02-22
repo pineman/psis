@@ -1,11 +1,8 @@
-#include <assert.h>
 
 #include <unistd.h>
 #include <signal.h>
 #include <pthread.h>
 
-#include "clipboard.h"
-#include "utils.h"
 
 int block_signals(sigset_t *sigset)
 {

@@ -1,17 +1,14 @@
 #include <stdio.h>
 #include <string.h>
 #include <errno.h>
-#include <stdbool.h>
 
 #include <unistd.h>
-#include <time.h>
 
 #define mperror(err) do { char __buf__[1024]; sprintf(__buf__, "%s:%d %s(), errno = %d", __FILE__, __LINE__-1, __func__, err); perror(__buf__); } while(0);
 #define emperror(err) do { mperror(err); exit(err); } while(0);
 
 #include "libclipboard.h"
 
-#include <unistd.h>
 
 int main(int argc, char *argv[])
 {

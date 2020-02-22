@@ -1,13 +1,11 @@
 #include <stdlib.h>
 #include <stdbool.h>
-#include <assert.h>
 
 #include <unistd.h>
 #include <signal.h>
 #include <pthread.h>
 
 #include "cb_common.h"
-#include "cb_msg.h"
 
 #include "clipboard.h"
 #include "utils.h"
