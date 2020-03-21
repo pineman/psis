@@ -14,9 +14,9 @@
 #include "parent.h"
 
 /* Globals */
-pthread_t main_tid;
-pthread_t parent_serve_tid;
-static pthread_t app_accept_tid, child_accept_tid;
+pthread_t main_thread;
+pthread_t parent_serve_thread;
+static pthread_t app_accept_thread, child_accept_thread;
 
 // Global array of regions
 struct region regions[CB_NUM_REGIONS];
@@ -39,7 +39,7 @@ void init_globals(void)
 {
 	int r;
 
-	main_tid = pthread_self();
+	main_thread = pthread_self();
 
 	// Initialize conn_list dummy heads
 	child_conn_list = calloc(1, sizeof(struct conn));
@@ -117,14 +117,14 @@ void create_threads(int *parent_socket, int *children_socket, int *app_socket)
 	int r;
 	// Create thread for parent connection (if needed)
 	if (parent_socket != NULL && *parent_socket != -1) {
-		r = pthread_create(&parent_serve_tid, NULL, serve_parent, parent_socket);
+		r = pthread_create(&parent_serve_thread, NULL, serve_parent, parent_socket);
 		if (r != 0) cb_eperror(r);
 	}
 	// Create accept threads
-	r = pthread_create(&child_accept_tid, NULL, child_accept, children_socket);
+	r = pthread_create(&child_accept_thread, NULL, child_accept, children_socket);
 	if (r != 0) cb_eperror(r);
 
-	r = pthread_create(&app_accept_tid, NULL, app_accept, app_socket);
+	r = pthread_create(&app_accept_thread, NULL, app_accept, app_socket);
 	if (r != 0) cb_eperror(r);
 }
 
@@ -135,23 +135,23 @@ void main_cleanup(void *arg)
 
 	cb_log("%s", "main cleanup\n");
 	// Cancel and join threads
-	r = pthread_cancel(app_accept_tid);
+	r = pthread_cancel(app_accept_thread);
 	if (r != 0) cb_eperror(r);
-	r = pthread_join(app_accept_tid, NULL);
+	r = pthread_join(app_accept_thread, NULL);
 	if (r != 0) cb_eperror(r);
 	cb_log("%s", "join app\n");
 	(void) unlink(CB_SOCKET);
 
-	r = pthread_cancel(child_accept_tid);
+	r = pthread_cancel(child_accept_thread);
 	if (r != 0) cb_eperror(r);
-	r = pthread_join(child_accept_tid, NULL);
+	r = pthread_join(child_accept_thread, NULL);
 	if (r != 0) cb_eperror(r);
 	cb_log("%s", "join child\n");
 
 	if (!root) {
-		r = pthread_cancel(parent_serve_tid);
+		r = pthread_cancel(parent_serve_thread);
 		if (r != 0) cb_eperror(r);
-		r = pthread_join(parent_serve_tid, NULL);
+		r = pthread_join(parent_serve_thread, NULL);
 		if (r != 0) cb_eperror(r);
 		cb_log("%s", "join parent\n");
 	}

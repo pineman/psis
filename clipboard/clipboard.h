@@ -23,8 +23,8 @@ struct clean {
 };
 
 /* Declare globals */
-extern pthread_t main_tid;
-extern pthread_t parent_serve_tid;
+extern pthread_t main_thread;
+extern pthread_t parent_serve_thread;
 
 // Global array of regions
 extern struct region regions[CB_NUM_REGIONS];
@@ -57,7 +57,7 @@ void main_cleanup(void *arg);
 
 #define cb_eperror(err) do { \
 	cb_perror(err); \
-	pthread_cancel(main_tid); \
+	pthread_cancel(main_thread); \
 } while(0);
 
 #ifdef CB_DBG
