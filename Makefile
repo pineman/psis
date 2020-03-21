@@ -20,7 +20,7 @@ LDFLAGS+= -z noexecstack -z relro -z now -pie
 LDLIBS+=
 
 SRCDIR=.
-SRC=$(shell find $(SRCDIR) -name "*.c" -not -path "./.vscode/*" | cut -d"/" -f2-)
+SRC=$(shell find $(SRCDIR) -name "*.c" -not -path "./.vscode/*" -not -path "./.ccls-cache/*" | cut -d"/" -f2-)
 
 # Define executables and their link dependencies here
 EXECS = clipboard/clipboard apps/copy_cont apps/copy apps/paste_cont apps/paste apps/wait_cont apps/wait apps/print_clipboard
