@@ -156,6 +156,8 @@ void main_cleanup(void *arg)
 		cb_log("%s", "join parent\n");
 	}
 
+	// TODO: se sabes que vais morrer, por quê sequer fazer free()?
+	// Tive vários bugs com isto.
 	free_globals();
 }
 

@@ -1,4 +1,4 @@
-Tested on Linux, MacOS, Windows (via MSYS2), OpenIndiana, FreeBSD, OpenBSD.
+Tested on Linux, macOS, Windows (via MSYS2 and WSL), OpenIndiana, FreeBSD, OpenBSD, DragonflyBSD, NetBSD. Clear Linux?
 
 # Roadmap
  * Start by local connections, 1 client to 1 server
