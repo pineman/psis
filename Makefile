@@ -16,7 +16,7 @@ CFLAGS+= -D_FORTIFY_SOURCE=2 -Wp,-D_GLIBCXX_ASSERTIONS -fstack-protector-strong 
 CFLAGS+= -I cb_common -I library -D_POSIX_C_SOURCE="200809L"
 #CXXFLAGS=$(CFLAGS)
 #LDFLAGS+= -fuse-ld=gold
-LDFLAGS+= -z noexecstack -z relro -z now -pie
+#LDFLAGS+= -z noexecstack -z relro -z now -pie
 LDLIBS+=
 
 SRCDIR=.
