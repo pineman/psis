@@ -1,6 +1,7 @@
 Tested on Linux, macOS, Windows (via MSYS2 and WSL), OpenIndiana, FreeBSD, OpenBSD, DragonflyBSD, NetBSD. Clear Linux?
 
 => Shouldn't use pthread_cancel, even with pthread_setcancelstate (which the app threads don't actually set). Should instead have a single thread that uses select (epoll?) on all listening sockets plus a pipe that is written to by the main on SIGINT.
+https://news.ycombinator.com/item?id=45645756
 
 # Roadmap
  * Start by local connections, 1 client to 1 server
